@@ -14,7 +14,7 @@
         <title>MythOS Script Editor</title>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
-        <script type="text/javascript" src="../../msg/js/en.js"></script>
+        <script type="text/javascript" src="../../msg/en.js"></script>
         <script type="text/javascript" src="../js/mythos_uncompressed.js"></script>
         <style>
             body {
@@ -49,10 +49,7 @@
             <div id="blocklyDiv"></div>
         </div>
     <xml id="toolbox" style="display: none">
-        <category id="variables" name="Variables">
-            <block type="variables_set"></block>
-            <block type="variables_get"></block>
-        </category>
+        <category id="variables" name="Variables" custom="VARIABLE"></category>
         <category id="functions" name="Functions">
             <category id="globalFunctions" name="Global"></category>
             <category id="localFunctions" name="Local"></category>
@@ -96,35 +93,35 @@
             <block type="text_print"></block>
             <block type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_println"></block>
             <block type="text_println">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_printnum"></block>
             <block type="text_storybook">
                 <value name="INTRO">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
                 <value name="SHORT">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
                 <value name="LONG">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_getanykey"></block>
@@ -183,9 +180,9 @@
             <!-- Press any key -->
             <block inline="false" type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">(press any key)</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block type="text_getanykey"></block>
@@ -198,9 +195,9 @@
                 <next>
                     <block type="text_print">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>                            
+                            </shadow>                            
                         </value>
                         <next>
                             <block type="text_getanykey">
@@ -209,9 +206,9 @@
                                         <next>
                                             <block type="text_print">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>                            
+                                                    </shadow>                            
                                                 </value>
                                             </block>                                            
                                         </next>
@@ -229,16 +226,16 @@
                 <next>
                     <block inline="false" type="text_println">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="false" type="text_print">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">(press any key)</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block type="text_getanykey">
@@ -256,9 +253,9 @@
             <!-- Exit -->
             <block inline="false" type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">Leave?</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block inline="false" type="controls_if">
@@ -287,9 +284,9 @@
                 <next>
                     <block inline="false" type="text_println">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="true" type="variables_set">
@@ -311,25 +308,25 @@
                                                             </block>
                                                         </value>
                                                         <value name="B">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">correct response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                     </block>
                                                 </value>
                                                 <statement name="DO0">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Affirmative Response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"></block>
@@ -341,16 +338,16 @@
                                                 <statement name="ELSE">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Negative Response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey">
@@ -386,9 +383,9 @@
                         <next>
                             <block inline="false" type="text_print">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Already beat boss</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                             </block>
                         </next>
@@ -400,16 +397,16 @@
                         <next>
                             <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Pre-boss fight message</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block inline="false" type="text_print">
                                         <value name="VALUE">
-                                            <block type="text">
+                                            <shadow type="text">
                                                 <field name="TEXT">(press any key)</field>
-                                            </block>
+                                            </shadow>
                                         </value>
                                         <next>
                                             <block type="text_getanykey">
@@ -424,16 +421,16 @@
                                                                         <next>
                                                                             <block inline="false" type="text_println">
                                                                                 <value name="VALUE">
-                                                                                    <block type="text">
+                                                                                    <shadow type="text">
                                                                                         <field name="TEXT">winning message</field>
-                                                                                    </block>
+                                                                                    </shadow>
                                                                                 </value>
                                                                                 <next>
                                                                                     <block inline="false" type="text_print">
                                                                                         <value name="VALUE">
-                                                                                            <block type="text">
+                                                                                            <shadow type="text">
                                                                                                 <field name="TEXT">(press any key)</field>
-                                                                                            </block>
+                                                                                            </shadow>
                                                                                         </value>
                                                                                         <next>
                                                                                             <block type="interaction_give_item">
@@ -471,9 +468,9 @@
                         <next>
                             <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Question Y/N</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block inline="false" type="controls_if">
@@ -507,16 +504,16 @@
                                                                 <next>
                                                                     <block inline="false" type="text_println">
                                                                         <value name="VALUE">
-                                                                            <block type="text">
+                                                                            <shadow type="text">
                                                                                 <field name="TEXT">text for sold</field>
-                                                                            </block>
+                                                                            </shadow>
                                                                         </value>
                                                                         <next>
                                                                             <block inline="false" type="text_print">
                                                                                 <value name="VALUE">
-                                                                                    <block type="text">
+                                                                                    <shadow type="text">
                                                                                         <field name="TEXT">(press any key)</field>
-                                                                                    </block>
+                                                                                    </shadow>
                                                                                 </value>
                                                                                 <next>
                                                                                     <block type="interaction_give_item">
@@ -539,16 +536,16 @@
                                                         <next>
                                                             <block inline="false" type="text_println">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">Text for no sale</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block inline="false" type="text_print">
                                                                         <value name="VALUE">
-                                                                            <block type="text">
+                                                                            <shadow type="text">
                                                                                 <field name="TEXT">(press any key)</field>
-                                                                            </block>
+                                                                            </shadow>
                                                                         </value>
                                                                         <next>
                                                                             <block type="text_getanykey"></block>
@@ -575,9 +572,9 @@
             <!-- Treasure -->
             <block inline="false" type="text_println">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">Text Y/N</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block inline="false" type="controls_if">
@@ -597,16 +594,16 @@
                                         <next>
                                             <block inline="false" type="text_println">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                                 <next>
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">(press any key)</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block type="text_getanykey"></block>
@@ -622,16 +619,16 @@
                                         <next>
                                             <block inline="false" type="text_println">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                                 <next>
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">(press any key)</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block type="interaction_give_item">
@@ -659,9 +656,9 @@
                 <next>
                     <block inline="false" type="text_println" id="3">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">TEXT</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="false" type="controls_if">
@@ -677,9 +674,9 @@
                                                     </block>
                                                 </value>
                                                 <value name="B">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">use</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                             </block>
                                         </value>
@@ -692,9 +689,9 @@
                                                     </block>
                                                 </value>
                                                 <value name="B">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Item?</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                             </block>
                                         </value>
@@ -713,16 +710,16 @@
                                                 <statement name="DO0">
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Text</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"/>
@@ -734,16 +731,16 @@
                                                 <statement name="ELSE">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Text</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"/>
@@ -769,7 +766,30 @@
         var blocklyDiv = document.getElementById('blocklyDiv');
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
-                {path: '../../', toolbox: document.getElementById('toolbox'), sounds: false});
+                {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
+
+        // Blockly v12 bug workaround: in JavaFX's immediate-render mode,
+        // child blocks (value-input shadows and next-chain blocks) are
+        // prematurely removed from the render dirty-queue before the parent
+        // block is initialized, so they never receive a renderEfficiently()
+        // call.  Re-queuing every descendant after the block is fully placed
+        // (deferred via setTimeout so positionNewBlock has already run) fixes
+        // both the "white blips" and the missing shadow-value-input blocks.
+        Mythos.workspace.addChangeListener(function(event) {
+            if (event.type === Blockly.Events.BLOCK_CREATE) {
+                var blockId = event.blockId;
+                setTimeout(function() {
+                    var block = Mythos.workspace.getBlockById(blockId);
+                    if (!block || block.isDisposed()) return;
+                    var descendants = block.getDescendants(false);
+                    for (var i = descendants.length - 1; i >= 0; i--) {
+                        var b = descendants[i];
+                        if (b.queueRender && !b.isDisposed()) b.queueRender();
+                    }
+                }, 0);
+            }
+        });
+
         var onresize = function (e) {
             // Compute the absolute coordinates and dimensions of blocklyArea.
             var element = blocklyArea;

@@ -21,6 +21,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.MenuItem;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.web.PromptData;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
@@ -125,6 +126,21 @@ public class MythosScriptEditorController
         assert menuItemMythosHelp != null : "fx:id=\"menuItemMythosHelp\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
         assert menuItemRedo != null : "fx:id=\"menuItemRedo\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
         assert menuItemUndo != null : "fx:id=\"menuItemUndo\" was not injected: check your FXML file 'MythosScriptEditor.fxml'.";
+
+        // JavaFX WebView does not forward scroll wheel events to embedded HTML content.
+        // Intercept them here and drive Blockly's workspace scroll directly via JS.
+        // ws.scroll(x, y) takes absolute workspace coords; divide pixel delta by scale
+        // so that scrolling feels the same at all zoom levels.
+        editorView.setOnScroll((ScrollEvent event) -> {
+            double dx = event.getDeltaX();
+            double dy = event.getDeltaY();
+            editorView.getEngine().executeScript(
+                "if(typeof Mythos!=='undefined'&&Mythos.workspace){" +
+                "var ws=Mythos.workspace,s=ws.scale||1;" +
+                "ws.scroll(ws.scrollX+(" + (-dx) + "/s),ws.scrollY+(" + dy + "/s));}"
+            );
+            event.consume();
+        });
 
         // JavaFX8 has a bug where stage maximize events do not trigger resize events to webview components
         // Also fix general window resize not triggering WebView resize

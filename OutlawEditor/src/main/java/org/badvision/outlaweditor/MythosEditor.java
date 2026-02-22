@@ -142,8 +142,13 @@ public class MythosEditor {
 
     public void applyChanges() {
         try {
-            String xml = controller.getScriptXml()
-                    .replaceFirst(Pattern.quote("<block"), "<block xmlns=\"outlaw\"");
+            String rawXml = controller.getScriptXml();
+            // Blockly v12 workspaceToDom prepends <variables>...</variables> when the
+            // workspace contains variables.  Strip anything before the first <block so
+            // the XML parser sees exactly one root element.
+            int blockStart = rawXml.indexOf("<block");
+            String xml = blockStart >= 0 ? rawXml.substring(blockStart) : rawXml;
+            xml = xml.replaceFirst(Pattern.quote("<block"), "<block xmlns=\"outlaw\"");
             JAXBContext context = JAXBContext.newInstance("org.badvision.outlaweditor.data.xml");
             Unmarshaller unmarshaller = context.createUnmarshaller();
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -152,7 +157,9 @@ public class MythosEditor {
             Document doc = db.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
             JAXBElement<Block> b = unmarshaller.unmarshal(doc, Block.class);
             script.setBlock(b.getValue());
-        } catch (JAXBException | ParserConfigurationException | SAXException | IOException ex) {
+        } catch (Exception ex) {
+            // Catch Exception (not just checked exceptions) so that JSException or any
+            // other RuntimeException from the JS bridge does not prevent close() from running.
             Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }

@@ -38,9 +38,52 @@
                 overflow: hidden;
             }
             #blocklyDiv {
-                height: 700px; 
+                position: absolute;
+                height: 700px;
                 width: 990px;
                 overflow: hidden;
+            }
+
+            /*
+             * JavaFX WebView / WebKit workspace-comment fixes.
+             *
+             * Blockly v12 renders workspace comments as SVG <g> elements that
+             * contain a <foreignObject> wrapping an HTML <textarea>.  In
+             * JavaFX's embedded WebKit, pointer events do not automatically
+             * propagate into HTML content hosted inside SVG <foreignObject>
+             * when ancestor elements have overflow:hidden set.  The two rules
+             * below restore interactivity:
+             *
+             *   1.  .blocklyCommentForeignObject - the SVG foreignObject
+             *       element itself must pass pointer events through to its
+             *       HTML children (pointer-events:none on the SVG node so the
+             *       SVG hit-test machinery doesn't swallow them; the HTML
+             *       children opt back in with pointer-events:auto).
+             *
+             *   2.  The <body> and <textarea> inside the foreignObject need
+             *       pointer-events:auto so they actually receive clicks/drags.
+             *
+             * Without these rules the comment textarea is visible but
+             * completely unresponsive to mouse input in JavaFX WebView.
+             */
+            .blocklyCommentForeignObject {
+                overflow: visible;
+                pointer-events: none;
+            }
+            .blocklyCommentForeignObject body,
+            .blocklyCommentForeignObject textarea {
+                pointer-events: auto;
+            }
+
+            /*
+             * The comment's SVG <g> root (.blocklyComment .blocklyDraggable)
+             * is the drag target.  Blockly wires its pointerdown listener on
+             * it.  Ensure the entire comment group (topbar, resize handle, and
+             * the gap between the foreignObject and the SVG frame) receives
+             * pointer events so dragging and the delete/collapse buttons work.
+             */
+            .blocklyComment {
+                pointer-events: auto;
             }
         </style>
     </head>
@@ -799,13 +842,13 @@
         // Cross-window clipboard bridge (JavaFX WebView has isolated JS contexts per window).
         // Blockly v12 stores copy/paste state in module-level JS variables, so a block
         // copied in Window A is invisible to Window B.  We fix this by:
-        //   Copy  – after Blockly copies internally, push the copy-data JSON to Java via
-        //           Mythos.editor.setClipboard().
-        //   Paste – before Blockly tries to paste, pull the Java-side data and inject it
-        //           into Blockly's internal stash, then let Blockly paste normally.
+        //   Copy  – after Blockly copies internally (stashing data in its own module vars),
+        //           read the stash back via getLastCopiedData() and push the JSON to Java
+        //           via Mythos.editor.setClipboard().
+        //   Paste – pull the Java-side data, inject it into Blockly's stash, then call
+        //           Blockly.clipboard.paste() directly and stop propagation so Blockly's
+        //           shortcut handler does not fire a second paste.
         (function() {
-            // Helper: serialise an object as a compact JSON string without relying on
-            // JSON.stringify producing a stable format across engines.
             function toJson(obj) {
                 try { return JSON.stringify(obj); } catch(e) { return null; }
             }
@@ -813,25 +856,25 @@
                 try { return str ? JSON.parse(str) : null; } catch(e) { return null; }
             }
 
-            // Push a copy to Java whenever a block is selected and Ctrl/Cmd+C fires.
-            // We listen at the capture phase on the document so we run after Blockly's
-            // own shortcut handler (Blockly registers on window at bubble phase).
             document.addEventListener('keydown', function(e) {
                 var isCopy  = (e.ctrlKey || e.metaKey) && e.key === 'c';
                 var isPaste = (e.ctrlKey || e.metaKey) && e.key === 'v';
 
                 if (isCopy) {
-                    // Let Blockly's handler run first (it fires on window bubble).
-                    // Use setTimeout so our code executes after all synchronous
-                    // event handlers in this turn have completed.
+                    // Defer so Blockly's own copy handler (which runs synchronously on
+                    // the element's bubble phase) has already stashed its copy data
+                    // before we read it back.
                     setTimeout(function() {
                         try {
-                            var selected = Blockly.getSelected ? Blockly.getSelected() : null;
-                            if (!selected || typeof selected.toCopyData !== 'function') return;
-                            var copyData = selected.toCopyData();
+                            if (!Mythos.editor) return;
+                            // Read what Blockly just stashed – more reliable than
+                            // re-calling toCopyData() on the (possibly-unfocused) block.
+                            var copyData = Blockly.clipboard.getLastCopiedData
+                                ? Blockly.clipboard.getLastCopiedData()
+                                : null;
                             if (!copyData) return;
                             var json = toJson(copyData);
-                            if (json && Mythos.editor) {
+                            if (json) {
                                 Mythos.editor.setClipboard(json);
                             }
                         } catch(err) { /* ignore */ }
@@ -839,10 +882,9 @@
                 }
 
                 if (isPaste) {
-                    // Before Blockly's paste handler runs, inject Java's clipboard into
-                    // Blockly's stash.  We run synchronously so the stash is ready when
-                    // Blockly's keydown handler fires (it also fires synchronously on
-                    // window bubble).
+                    // Inject the Java-side clipboard into Blockly's stash, then drive
+                    // the paste directly.  preventDefault + stopPropagation prevent
+                    // Blockly's shortcut handler from firing a second paste.
                     try {
                         if (!Mythos.editor) return;
                         var json = Mythos.editor.getClipboard();
@@ -850,12 +892,131 @@
                         var copyData = fromJson(json);
                         if (!copyData) return;
                         Blockly.clipboard.setLastCopiedData(copyData);
-                        // Point the stashed workspace at our own workspace so Blockly
-                        // knows where to paste.
+                        // Point the stashed workspace at our own workspace so that
+                        // Blockly's preconditionFn and paste() both resolve correctly.
                         Blockly.clipboard.setLastCopiedWorkspace(Mythos.workspace);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        Blockly.clipboard.paste(copyData, Mythos.workspace);
                     } catch(err) { /* ignore */ }
                 }
-            }, true /* capture so we run before Blockly's window-level bubble handler */);
+            }, true /* capture – fires before any element-level bubble handlers */);
+        })();
+
+        // Blockly v12 undo-delete bug workaround:
+        //
+        // When a block chain is deleted, Blockly calls block.unplug() to
+        // disconnect the block from its parent BEFORE creating the BlockDelete
+        // event.  Because disconnectInternal() suppresses BLOCK_MOVE events for
+        // blocks that are "dying" (disposing==true), no undo record of the
+        // parent connection is ever created.  On undo, BlockDelete.run(false)
+        // recreates the block at its saved canvas coordinates but with no
+        // connection – it floats disconnected on the canvas.
+        //
+        // Fix: monkeypatch BlockSvg.prototype.dispose to record the parent
+        // connection just before unplug() erases it, then monkeypatch
+        // BlockDelete.prototype.run to reconnect the restored block after
+        // append() has recreated it.
+        (function() {
+            // Side-table: blockId → {parentId, inputName, isNext}
+            // 'isNext' = true means the block's previousConnection was
+            //            attached to the parent's nextConnection (statement
+            //            chain linkage).  When isNext===false the block's
+            //            outputConnection was inside a value input of the
+            //            parent; in that case inputName holds the input name.
+            var _connInfo = {};
+
+            // Helper: record parent connection info for block 'blk' into
+            // _connInfo.  Must be called before unplug() erases the connection.
+            function captureConnInfo(blk) {
+                if (!Blockly.Events.isEnabled()) return;
+                var blockId = blk.id;
+                if (blk.previousConnection && blk.previousConnection.isConnected()) {
+                    var parentConn = blk.previousConnection.targetConnection;
+                    if (parentConn) {
+                        _connInfo[blockId] = {
+                            parentId: parentConn.getSourceBlock().id,
+                            isNext: true
+                        };
+                    }
+                } else if (blk.outputConnection && blk.outputConnection.isConnected()) {
+                    var parentConn = blk.outputConnection.targetConnection;
+                    if (parentConn) {
+                        var parentBlock = parentConn.getSourceBlock();
+                        var inputName = null;
+                        for (var i = 0; i < parentBlock.inputList.length; i++) {
+                            var inp = parentBlock.inputList[i];
+                            if (inp.connection && inp.connection === parentConn) {
+                                inputName = inp.name;
+                                break;
+                            }
+                        }
+                        _connInfo[blockId] = {
+                            parentId: parentBlock.id,
+                            inputName: inputName,
+                            isNext: false
+                        };
+                    }
+                }
+            }
+
+            // Patch BlockSvg.prototype.dispose to capture parent connection
+            // info before unplug() clears it.  We must patch BlockSvg (the
+            // rendered subclass) rather than Block because BlockSvg.dispose
+            // calls this.unplug() itself before delegating to super.dispose(),
+            // so patching Block.prototype.dispose would be too late.
+            var _origDispose = Blockly.BlockSvg.prototype.dispose;
+            Blockly.BlockSvg.prototype.dispose = function(healStack, animate) {
+                captureConnInfo(this);
+                return _origDispose.call(this, healStack, animate);
+            };
+
+            // Patch BlockDelete.prototype.run to reconnect after undo.
+            //
+            // Undo sequence for "delete B from chain A→B→C":
+            //   Undo event group: [BlockDelete-B, BlockMove-C]
+            //   e[0].run(false): BlockDelete → B recreated floating; A.next still→C
+            //   e[1].run(false): BlockMove   → C unplug from A, connect to B.next
+            //
+            // We inject A.next→B.prev inside BlockDelete.run(false), which runs
+            // while setRecordUndo=false so the extra connect() events are not
+            // pushed to the undo stack.  If A.next is occupied by C (the healed
+            // block), Blockly's connect_() will bump C to floating first; then
+            // BlockMove-C.run(false) correctly re-attaches C to B.next.
+            var BlockDelete = Blockly.Events.BlockDelete;
+            var _origRun = BlockDelete.prototype.run;
+            BlockDelete.prototype.run = function(forward) {
+                _origRun.call(this, forward);
+                if (!forward && this.blockId) {
+                    var info = _connInfo[this.blockId];
+                    if (info) {
+                        delete _connInfo[this.blockId];
+                        var ws = this.getEventWorkspace_();
+                        var restoredBlock = ws.getBlockById(this.blockId);
+                        var parentBlock   = ws.getBlockById(info.parentId);
+                        if (restoredBlock && !restoredBlock.isDisposed() &&
+                                parentBlock && !parentBlock.isDisposed()) {
+                            try {
+                                if (info.isNext) {
+                                    // Reconnect: parent.nextConnection ↔ restored.previousConnection
+                                    var pConn = parentBlock.nextConnection;
+                                    var cConn = restoredBlock.previousConnection;
+                                    if (pConn && cConn) {
+                                        pConn.connect(cConn);
+                                    }
+                                } else if (info.inputName !== null) {
+                                    // Reconnect: parent value-input ↔ restored.outputConnection
+                                    var input = parentBlock.getInput(info.inputName);
+                                    var cConn = restoredBlock.outputConnection;
+                                    if (input && input.connection && cConn) {
+                                        input.connection.connect(cConn);
+                                    }
+                                }
+                            } catch(e) { /* ignore – best-effort reconnect */ }
+                        }
+                    }
+                }
+            };
         })();
 
         var onresize = function (e) {

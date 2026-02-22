@@ -1173,10 +1173,16 @@ class MythosFieldTextArea extends Blockly.FieldTextInput {
         htmlInput.setAttribute('rows', 7);
         div.style.fontSize = '11pt';
         div.style.width = '400px';
+        div.style.background = 'transparent';
         htmlInput.style.width = '100%';
         htmlInput.style.boxSizing = 'border-box';
         htmlInput.style.fontSize = '11pt';
-        htmlInput.style.backgroundColor = '#eee';
+        htmlInput.style.backgroundColor = 'white';
+        htmlInput.style.border = '2px solid #ccc';
+        htmlInput.style.borderRadius = '4px';
+        htmlInput.style.padding = '4px';
+        htmlInput.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+        htmlInput.style.resize = 'vertical';
         div.appendChild(htmlInput);
 
         // Position the WidgetDiv near the field being edited.
@@ -1201,7 +1207,8 @@ class MythosFieldTextArea extends Blockly.FieldTextInput {
         htmlInput.value = htmlInput.defaultValue = this.getValue();
         htmlInput.oldValue_ = null;
         htmlInput.focus();
-        htmlInput.select();
+        var len = htmlInput.value.length;
+        htmlInput.setSelectionRange(len, len);
 
         htmlInput.addEventListener('keydown', (e) => {
             if (e.keyCode === 27) { // Esc

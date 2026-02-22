@@ -824,6 +824,24 @@
         // call.  Re-queuing every descendant after the block is fully placed
         // (deferred via setTimeout so positionNewBlock has already run) fixes
         // both the "white blips" and the missing shadow-value-input blocks.
+        //
+        // Workspace-comment layout fix (same root cause as the block rendering bug):
+        // CommentView.setSizeWithoutFiringEvents() calls SVG getBBox() on child
+        // elements (topbar RECT, resize-handle IMAGE, button icons) to compute
+        // exact layout geometry.  In JavaFX WebKit, getBBox() returns {w:0,h:0}
+        // for elements that are in the DOM but have not yet had a browser layout
+        // pass.  The CommentView constructor calls setSizeWithoutFiringEvents()
+        // synchronously right after appending the SVG root to the layer – so the
+        // topbar-background height (24 px set via CSS) reads as 0.  Consequences:
+        //   • foreignObject y is set to 0 instead of 24 → textarea overlaps topbar
+        //   • resize handle lands at (120, 100) instead of (108, 88) → off-edge
+        //   • deleteButton.reposition() places the icon at x=0 because
+        //     container.getBBox().width = 0
+        // Deferring a repeat setSizeWithoutFiringEvents() call via setTimeout(0)
+        // lets one browser paint cycle complete so all getBBox() calls return the
+        // real CSS-computed dimensions.  view.setSizeWithoutFiringEvents is used
+        // rather than comment.setSize so no spurious COMMENT_RESIZE undo event
+        // is fired during initialisation.
         Mythos.workspace.addChangeListener(function(event) {
             if (event.type === Blockly.Events.BLOCK_CREATE) {
                 var blockId = event.blockId;
@@ -834,6 +852,19 @@
                     for (var i = descendants.length - 1; i >= 0; i--) {
                         var b = descendants[i];
                         if (b.queueRender && !b.isDisposed()) b.queueRender();
+                    }
+                }, 0);
+            }
+
+            if (event.type === Blockly.Events.COMMENT_CREATE) {
+                var commentId = event.commentId;
+                setTimeout(function() {
+                    var comment = Mythos.workspace.getCommentById(commentId);
+                    if (!comment || comment.isDisposed()) return;
+                    // Re-run SVG layout now that the browser has had a paint
+                    // cycle and getBBox() returns real CSS-computed dimensions.
+                    if (comment.view && comment.view.setSizeWithoutFiringEvents) {
+                        comment.view.setSizeWithoutFiringEvents(comment.getSize());
                     }
                 }, 0);
             }

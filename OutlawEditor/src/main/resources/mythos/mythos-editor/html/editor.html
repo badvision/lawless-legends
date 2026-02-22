@@ -845,9 +845,13 @@
         //   Copy  – after Blockly copies internally (stashing data in its own module vars),
         //           read the stash back via getLastCopiedData() and push the JSON to Java
         //           via Mythos.editor.setClipboard().
-        //   Paste – pull the Java-side data, inject it into Blockly's stash, then call
-        //           Blockly.clipboard.paste() directly and stop propagation so Blockly's
-        //           shortcut handler does not fire a second paste.
+        //   Paste – pull the Java-side data, parse it, inject it into Blockly's stash via
+        //           setLastCopiedData() + setLastCopiedWorkspace(), then call
+        //           Blockly.clipboard.paste(Mythos.workspace) with ONE argument so that
+        //           paste() reads from the stash (which we just populated) rather than
+        //           receiving copyData directly.  This matches how Blockly's own shortcut
+        //           handler drives paste and avoids the two-arg path that bypasses the
+        //           stash-based workspace resolution.
         (function() {
             function toJson(obj) {
                 try { return JSON.stringify(obj); } catch(e) { return null; }
@@ -882,23 +886,35 @@
                 }
 
                 if (isPaste) {
-                    // Inject the Java-side clipboard into Blockly's stash, then drive
-                    // the paste directly.  preventDefault + stopPropagation prevent
-                    // Blockly's shortcut handler from firing a second paste.
+                    // Pull the Java-side clipboard, inject into Blockly's stash, then
+                    // let paste() read from the stash (one-arg form).
+                    // We only preventDefault/stopPropagation AFTER confirming we have
+                    // valid data, so a same-window paste (no Java clipboard) still works.
                     try {
                         if (!Mythos.editor) return;
                         var json = Mythos.editor.getClipboard();
+                        // Log to confirm data arrives across the JS/Java bridge.
+                        Mythos.editor.log('paste clipboard: ' + json);
                         if (!json) return;
                         var copyData = fromJson(json);
                         if (!copyData) return;
+                        // Populate Blockly's stash so the one-arg paste() call below
+                        // (and Blockly's own preconditionFn) see consistent state.
                         Blockly.clipboard.setLastCopiedData(copyData);
                         // Point the stashed workspace at our own workspace so that
-                        // Blockly's preconditionFn and paste() both resolve correctly.
+                        // Blockly's preconditionFn resolves correctly.
                         Blockly.clipboard.setLastCopiedWorkspace(Mythos.workspace);
+                        // Prevent Blockly's shortcut handler from firing a second paste
+                        // now that the stash is primed and we are about to paste.
                         e.preventDefault();
                         e.stopPropagation();
-                        Blockly.clipboard.paste(copyData, Mythos.workspace);
-                    } catch(err) { /* ignore */ }
+                        // One-arg form: paste(workspace) – Blockly reads copyData and
+                        // workspace from the stash we just set above.  This is how
+                        // Blockly's own Ctrl+V shortcut handler drives paste internally.
+                        Blockly.clipboard.paste(Mythos.workspace);
+                    } catch(err) {
+                        Mythos.editor && Mythos.editor.log('paste error: ' + err);
+                    }
                 }
             }, true /* capture – fires before any element-level bubble handlers */);
         })();

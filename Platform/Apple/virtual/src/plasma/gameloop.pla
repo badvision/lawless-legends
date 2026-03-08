@@ -1920,7 +1920,11 @@ def showPartyLine(p)#0
   if p <> global=>p_players; displayChar('\n'); fin
   if p->b_skillPoints; rawDisplayStr("^I"); fin // inverse for chars needing lvl-up
   rawDisplayf1("%s^N", p=>s_name)
-  rightJustifyStr(sprintf2("%d/%d", p=>w_health, p=>w_maxHealth), CHAR_WND_HEALTH_X)
+  if p=>w_health <= 0
+    rightJustifyStr("unconsc", CHAR_WND_HEALTH_X)
+  else
+    rightJustifyStr(sprintf2("%d/%d", p=>w_health, p=>w_maxHealth), CHAR_WND_HEALTH_X)
+  fin
 end
 export def showParty()#0
   word p, cursX, cursY

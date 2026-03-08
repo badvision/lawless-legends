@@ -38,6 +38,12 @@ struc EnemyData
   byte b_en_gangChance
 end
 
+const SPEED_FAST     = 100
+const SPEED_MEDFAST  = 400
+const SPEED_MEDIUM   = 800
+const SPEED_MEDSLOW  = 1200
+const SPEED_SLOW     = 2000
+
 const COMBAT_CHOICE_Y = 54
 
 predef _combat_zoneEncounter(s_encZone)#1
@@ -126,19 +132,57 @@ def rollPercentileWithLuck(luck)#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def adjustSpeed(key)#0
+  word str
+  if key == 10 or key == '-' // down-arrow or minus = Slower
+    ^kbdStrobe
+    if global=>w_combatPauseCt < SPEED_MEDFAST
+      global=>w_combatPauseCt = SPEED_MEDFAST
+      str = "medium-fast"
+    elsif global=>w_combatPauseCt < SPEED_MEDIUM
+      global=>w_combatPauseCt = SPEED_MEDIUM
+      str = "medium"
+    elsif global=>w_combatPauseCt < SPEED_MEDSLOW
+      global=>w_combatPauseCt = SPEED_MEDSLOW
+      str = "medium-slow"
+    else
+      global=>w_combatPauseCt = SPEED_SLOW
+      str = "slow"
+    fin
+  elsif key == 11 or key == '+' // up-arrow or plus = Faster
+    ^kbdStrobe
+    if global=>w_combatPauseCt >= SPEED_SLOW
+      global=>w_combatPauseCt = SPEED_MEDSLOW
+      str = "medium-slow"
+    elsif global=>w_combatPauseCt >= SPEED_MEDSLOW
+      global=>w_combatPauseCt = SPEED_MEDIUM
+      str = "medium"
+    elsif global=>w_combatPauseCt >= SPEED_MEDIUM
+      global=>w_combatPauseCt = SPEED_MEDFAST
+      str = "medium-fast"
+    else
+      global=>w_combatPauseCt = SPEED_FAST
+      str = "fast"
+    fin
+  fin
+
+  rawDisplayf1("\n(%s speed)\n", str)
+  pause(global=>w_combatPauseCt)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def combatPause()#0
   byte key
 
   pause(global=>w_combatPauseCt)
 
   // Check for speed-up / slow-down
-  key = ^kbd & $7F
-  if key == 11 or key == '-' // up-arrow or minus
-    ^kbdStrobe
-    global=>w_combatPauseCt = max(100, global=>w_combatPauseCt - addPercent(global=>w_combatPauseCt, 20))
-  elsif key == 10 or key == '+' // down-arrow or plus
-    ^kbdStrobe
-    global=>w_combatPauseCt = min(9999, global=>w_combatPauseCt + addPercent(global=>w_combatPauseCt, 20))
+  if ^kbd >= 128
+    key = ^kbd & $7F
+    if key == 10 or key == '-' or key == 11 or key == '+'
+      ^kbdStrobe
+      adjustSpeed(key)
+    fin
   fin
 end
 
@@ -785,6 +829,14 @@ def playerCombatChoose(pl)#0
           return
         fin
         break
+      is '-'
+      is 10
+      is '+'
+      is 11
+        rawDisplayStr("^D") // clear to end of page
+        adjustSpeed(pl->b_combatChoice)
+        redisplayMenu = TRUE
+        break
       //combatDebug// is '%'
       //combatDebug//   if global->b_godmode
       //combatDebug//     clearWindow()
@@ -1365,8 +1417,9 @@ def startCombat(mapCode)#1
     elsif n == '*' and global->b_godmode
       displayStr("\n\n")
       return -99
+    else
+      beep()
     fin
-    beep()
   loop
 
   return 0 // just to keep compiler happy

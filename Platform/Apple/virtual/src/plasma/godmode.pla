@@ -241,7 +241,7 @@ def editFlags()#1
       puts(flagName)
       ^$32 = $FF
       printChar(' ')
-      if ^$25 == 21
+      if ^$25 == 20
         hitAnyKey()
         textHome()
       fin

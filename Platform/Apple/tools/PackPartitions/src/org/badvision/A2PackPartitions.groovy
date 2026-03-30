@@ -19,6 +19,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.regex.Pattern
@@ -4725,7 +4726,7 @@ end
     {
         if (!toFile.exists() || fromFile.lastModified() > toFile.lastModified()) {
             toFile.delete()
-            Files.copy(fromFile.toPath(), toFile.toPath())
+            Files.copy(fromFile.toPath(), toFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
     }
 

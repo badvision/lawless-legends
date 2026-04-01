@@ -8,29 +8,38 @@
  * governing permissions and limitations under the License.
  */
  
-/* global Blockly, goog */
+/* global Blockly */
 
 if (typeof Mythos === "undefined") {
 // Hook up the rename function to notify the java editor when changes occur
     if (typeof window === "undefined") {
         window = {};
     }
-    Blockly.Procedures.rename_old = Blockly.Procedures.rename;
-    Blockly.Procedures.rename = function (name) {
-        Mythos.editor.setFunctionName(name);
-        return Blockly.Procedures.rename_old.call(this, name);
-    };
+    if (Blockly.Procedures && Blockly.Procedures.rename) {
+        Blockly.Procedures.rename_old = Blockly.Procedures.rename;
+        Blockly.Procedures.rename = function (name) {
+            Mythos.editor.setFunctionName(name);
+            return Blockly.Procedures.rename_old.call(this, name);
+        };
+    }
     Mythos = {
         setScriptXml: function (xml) {
-            Blockly.mainWorkspace.clear();
-            var dom = Blockly.Xml.textToDom(xml);
-            Blockly.Xml.domToWorkspace(Blockly.mainWorkspace, dom);
-            while (Blockly.mainWorkspace.topBlocks_.length > 1) {
-                Blockly.mainWorkspace.topBlocks_[1].dispose();
+            var ws = Mythos.workspace;
+            ws.clear();
+            var dom = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+            Blockly.Xml.domToWorkspace(dom, ws);
+            // Re-register custom variables after ws.clear() wiped them.
+            // Must happen after domToWorkspace so we don't duplicate variables
+            // that Blockly already auto-created from <field name="VAR"> elements.
+            Mythos.addCustomVariables();
+            var topBlocks = ws.getTopBlocks(false);
+            while (topBlocks.length > 1) {
+                topBlocks[topBlocks.length - 1].dispose();
+                topBlocks = ws.getTopBlocks(false);
             }
         },
         getScriptXml: function () {
-            return Blockly.Xml.workspaceToDom(Blockly.mainWorkspace).innerHTML;
+            return Blockly.Xml.workspaceToDom(Mythos.workspace).innerHTML;
         },
         helpUrl: 'https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M/edit#heading=h.yv9dmneqjr2b',
         initCustomDefinitions: function () {
@@ -204,26 +213,22 @@ if (typeof Mythos === "undefined") {
             Mythos.addFunctionsFromScope(toolbarCategory, "Local", Mythos.editor.getLocalFunctions());
         },
         addCustomVariables: function () {
-            Blockly.Variables.allVariables_old = Blockly.Variables.allVariables;
-            Blockly.Variables.allVariables = function (workspace) {
-                var list = Blockly.Variables.allVariables_old(workspace);
-                Mythos.each(Mythos.editor.getVariablesByType("String"), function (variable) {
-                    if (list.indexOf(variable.getName()) < 0) {
-                        list.push(variable.getName());
-                    }
-                });
-                Mythos.each(Mythos.editor.getVariablesByType("Number"), function (variable) {
-                    if (list.indexOf(variable.getName()) < 0) {
-                        list.push(variable.getName());
-                    }
-                });
-                Mythos.each(Mythos.editor.getVariablesByType("Boolean"), function (variable) {
-                    if (list.indexOf(variable.getName()) < 0) {
-                        list.push(variable.getName());
-                    }
-                });
-                return list;
-            };
+            // Register global and local variables from the Java model into the workspace
+            // variable map so they appear in variables_get/variables_set dropdowns.
+            // Uses type '' (empty string) which is what the standard variable blocks expect.
+            // createVariable() is idempotent: returns the existing var if already present.
+            Mythos.each(Mythos.editor.getGlobalVariables(), function (variable) {
+                var name = variable.getName();
+                if (name) {
+                    Mythos.workspace.createVariable(name, '');
+                }
+            });
+            Mythos.each(Mythos.editor.getLocalVariables(), function (variable) {
+                var name = variable.getName();
+                if (name) {
+                    Mythos.workspace.createVariable(name, '');
+                }
+            });
         },
         initBlocks: function () {
             Blockly.Blocks['flow_for'] = {
@@ -600,7 +605,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['text'] = {
                 init: function () {
                     this.setHelpUrl(Blockly.Msg.TEXT_TEXT_HELPURL);
-                    this.setColour(Blockly.Blocks.texts.HUE);
+                    this.setColour(160);
                     this.appendDummyInput()
                             .appendField(this.newQuote_(true))
                             .appendField(new Blockly.FieldTextArea('', this.checkSpelling), 'TEXT')
@@ -640,7 +645,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['text_getnumber'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.setColour(210);
                     this.appendDummyInput()
                             .appendField("Get Number");
                     this.setOutput(true, "Number");
@@ -660,7 +665,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['text_getboolean'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.setColour(210);
                     this.appendDummyInput()
                             .appendField("Get Yes or No");
                     this.setOutput(true, "Boolean");
@@ -698,7 +703,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['interaction_has_item'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.setColour(210);
                     this.appendDummyInput()
                             .appendField("party has item")
                             .appendField(new Blockly.FieldTextInput(""), "NAME");
@@ -773,7 +778,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['interaction_has_player'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.setColour(210);
                     this.appendDummyInput()
                             .appendField("party has player")
                             .appendField(new Blockly.FieldTextInput(""), "NAME");
@@ -808,7 +813,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['interaction_get_stat'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.math.HUE);
+                    this.setColour(230);
                     this.appendDummyInput()
                             .appendField("player's")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
@@ -908,7 +913,7 @@ if (typeof Mythos === "undefined") {
             Blockly.Blocks['interaction_get_flag'] = {
                 init: function () {
                     this.setHelpUrl(Mythos.helpUrl);
-                    this.setColour(Blockly.Blocks.logic.HUE);
+                    this.setColour(210);
                     this.appendDummyInput()
                             .appendField("game's")
                             .appendField(new Blockly.FieldTextInput(""), "NAME")
@@ -1128,146 +1133,96 @@ if (typeof Mythos === "undefined") {
 }
 ;
 //------
-goog.provide('Blockly.FieldTextArea');
-goog.require('Blockly.Field');
-goog.require('Blockly.Msg');
-goog.require('goog.asserts');
-goog.require('goog.userAgent');
-
-/**
- * Class for an editable text field.
- * @param {string} text The initial content of the field.
- * @param {Function} opt_changeHandler An optional function that is called
- *     to validate any constraints on what the user entered.  Takes the new
- *     text as an argument and returns either the accepted text, a replacement
- *     text, or null to abort the change.FFF
- * @param {Function} opt_sourceBlock Pass source block if validation function requires it
- * @extends {Blockly.Field}
- * @constructor
- */
-Blockly.FieldTextArea = function (text, opt_changeHandler) {
-    this.changeHandler_ = opt_changeHandler;
-    Blockly.FieldTextArea.superClass_.constructor.call(this, text, opt_changeHandler);
-};
-goog.inherits(Blockly.FieldTextArea, Blockly.FieldTextInput);
-/**
- * Clone this FieldTextArea.
- * @return {!Blockly.FieldTextArea} The result of calling the constructor again
- *   with the current values of the arguments used during construction.
- */
-Blockly.FieldTextArea.prototype.clone = function () {
-    return new Blockly.FieldTextArea(this.getText(), this.changeHandler_);
-};
-
-Blockly.FieldTextArea.prototype.init = function(block) {
-    Blockly.FieldTextArea.superClass_.init.call(this, block);
-    if (this.changeHandler_) {
-        this.changeHandler_(this.text_);
+// FieldTextArea: rewritten as ES6 class for Blockly v12+ (no Closure Library)
+class MythosFieldTextArea extends Blockly.FieldTextInput {
+    constructor(text, opt_changeHandler) {
+        super(text, opt_changeHandler);
+        this.changeHandler_ = opt_changeHandler;
     }
-};
 
-/**
- * Show the inline free-text editor on top of the text.
- * @param {boolean=} opt_quietInput True if editor should be created without
- *     focus.  Defaults to false.
- * @private
- */
-Blockly.FieldTextArea.prototype.showEditor_ = function (opt_quietInput) {
-    var quietInput = opt_quietInput || false;
-    if (!quietInput && (goog.userAgent.MOBILE || goog.userAgent.ANDROID ||
-            goog.userAgent.IPAD)) {
-        // Mobile browsers have issues with in-line textareas (focus & keyboards).
-        var newValue = window.prompt(Blockly.Msg.CHANGE_VALUE_TITLE, this.text_);
-        if (this.sourceBlock_ && this.changeHandler_) {
-            var override = this.changeHandler_(newValue);
-            if (override !== undefined) {
-                newValue = override;
+    clone() {
+        return new MythosFieldTextArea(this.getText(), this.changeHandler_);
+    }
+
+    showEditor_(e) {
+        var isMobile = /Mobi|Android|iPad/i.test(navigator.userAgent);
+        if (isMobile) {
+            var newValue = window.prompt(Blockly.Msg['CHANGE_VALUE_TITLE'] || 'Change value', this.getValue());
+            if (newValue !== null) {
+                this.setValue(newValue);
             }
+            return;
         }
-        if (newValue !== null) {
-            this.setText(newValue);
+
+        var sourceBlock = this.getSourceBlock();
+        var rtl = sourceBlock ? sourceBlock.RTL : false;
+        var workspace = sourceBlock ? sourceBlock.workspace : null;
+        // Pass workspace (arg 4) and false for takeFocus (arg 5) so Blockly's
+        // focus manager doesn't steal focus away from the textarea we create.
+        Blockly.WidgetDiv.show(this, rtl, () => {}, workspace, false);
+        var div = Blockly.WidgetDiv.getDiv ? Blockly.WidgetDiv.getDiv() : Blockly.WidgetDiv.DIV;
+        if (!div) {
+            super.showEditor_(e);
+            return;
         }
-        return;
-    }
 
-    Blockly.WidgetDiv.show(this, this.sourceBlock_.RTL, this.widgetDispose_());
-    var div = Blockly.WidgetDiv.DIV;
-    // Create the input.
-    var htmlInput = goog.dom.createDom('textarea', 'blocklyHtmlInput');
-    htmlInput.setAttribute('spellcheck', this.spellcheck_);
-    htmlInput.setAttribute('cols', 80);
-    htmlInput.setAttribute('rows', 7);
-    var fontSize = (Blockly.FieldTextInput.FONTSIZE *
-            this.sourceBlock_.workspace.scale) + 'pt';
-    div.style.fontSize = fontSize;
-    div.style.width = "30em";
-    htmlInput.style.width = "30em";
-    htmlInput.style.fontSize = fontSize;
-    htmlInput.style.backgroundColor = "#eee";
-    /** @type {!HTMLTextArea} */
-    Blockly.FieldTextInput.htmlInput_ = htmlInput;
-    div.appendChild(htmlInput);
+        var htmlInput = document.createElement('textarea');
+        htmlInput.className = 'blocklyHtmlInput';
+        htmlInput.setAttribute('spellcheck', false);
+        htmlInput.setAttribute('cols', 80);
+        htmlInput.setAttribute('rows', 7);
+        div.style.fontSize = '11pt';
+        div.style.width = '400px';
+        div.style.background = 'transparent';
+        htmlInput.style.width = '100%';
+        htmlInput.style.boxSizing = 'border-box';
+        htmlInput.style.fontSize = '11pt';
+        htmlInput.style.backgroundColor = 'white';
+        htmlInput.style.border = '2px solid #ccc';
+        htmlInput.style.borderRadius = '4px';
+        htmlInput.style.padding = '4px';
+        htmlInput.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+        htmlInput.style.resize = 'vertical';
+        div.appendChild(htmlInput);
 
-    htmlInput.value = htmlInput.defaultValue = this.text_;
-    htmlInput.oldValue_ = null;
-    this.validate_();
-    this.resizeEditor_();
-    if (!quietInput) {
+        // Position the WidgetDiv near the field being edited.
+        // getScaledBBox() returns absolute page coordinates of the field.
+        // We position directly rather than using positionWithAnchor, to avoid
+        // positionWithAnchor clamping div.style.height to a fixed estimate.
+        try {
+            var bbox = this.getScaledBBox();
+            var viewportWidth = document.documentElement.clientWidth;
+            var WIDGET_WIDTH = 400;
+            // Place below the field; flip above if not enough room below.
+            var left = rtl ? Math.max(0, bbox.right - WIDGET_WIDTH) : bbox.left;
+            // Clamp to viewport so the widget doesn't overflow right edge.
+            left = Math.min(left, viewportWidth - WIDGET_WIDTH);
+            left = Math.max(0, left);
+            div.style.left = left + 'px';
+            div.style.top = bbox.bottom + 'px';
+        } catch (ex) {
+            // Leave positioning to browser defaults if bbox APIs are unavailable.
+        }
+
+        htmlInput.value = htmlInput.defaultValue = this.getValue();
+        htmlInput.oldValue_ = null;
         htmlInput.focus();
-        htmlInput.select();
-    }
+        var len = htmlInput.value.length;
+        htmlInput.setSelectionRange(len, len);
 
-    // Bind to keydown -- trap Enter without IME and Esc to hide.
-    htmlInput.onKeyDownWrapper_ =
-            Blockly.bindEvent_(htmlInput, 'keydown', this, this.onHtmlInputKeyDown_);
-    // Bind to keyup -- trap Enter; resize after every keystroke.
-    htmlInput.onKeyUpWrapper_ =
-            Blockly.bindEvent_(htmlInput, 'keyup', this, this.onHtmlInputChange_);
-    // Bind to keyPress -- repeatedly resize when holding down a key.
-    htmlInput.onKeyPressWrapper_ =
-            Blockly.bindEvent_(htmlInput, 'keypress', this, this.onHtmlInputChange_);
-    var workspaceSvg = this.sourceBlock_.workspace.getCanvas();
-    htmlInput.onWorkspaceChangeWrapper_ =
-            Blockly.bindEvent_(workspaceSvg, 'blocklyWorkspaceChange', this,
-                    this.resizeEditor_);
-};
-
-/**
- * Handle key down to the editor.
- * @param {!Event} e Keyboard event.
- * @private
- */
-Blockly.FieldTextArea.prototype.onHtmlInputKeyDown_ = function (e) {
-    var htmlInput = Blockly.FieldTextInput.htmlInput_;
-    var escKey = 27;
-    if (e.keyCode === escKey) {
-        this.setText(htmlInput.defaultValue);
-        Blockly.WidgetDiv.hide();
+        htmlInput.addEventListener('keydown', (e) => {
+            if (e.keyCode === 27) { // Esc
+                this.setValue(htmlInput.defaultValue);
+                Blockly.WidgetDiv.hide();
+            }
+        });
+        htmlInput.addEventListener('input', () => {
+            var text = htmlInput.value;
+            if (text !== htmlInput.oldValue_) {
+                htmlInput.oldValue_ = text;
+                this.setValue(text);
+            }
+        });
     }
-};
-/**
- * Handle a change to the editor.
- * @param {!Event} e Keyboard event.
- * @private
- */
-Blockly.FieldTextArea.prototype.onHtmlInputChange_ = function (e) {
-    var htmlInput = Blockly.FieldTextArea.htmlInput_;
-    if (e.keyCode === 27) {
-        // Esc
-        this.setText(htmlInput.defaultValue);
-        Blockly.WidgetDiv.hide();
-    } else {
-        // Update source block.
-        var text = htmlInput.value;
-        if (text !== htmlInput.oldValue_) {
-            htmlInput.oldValue_ = text;
-            this.setText(text);
-            this.validate_();
-        } else if (goog.userAgent.WEBKIT) {
-            // Cursor key.  Render the source block to show the caret moving.
-            // Chrome only (version 26, OS X).
-            this.sourceBlock_.render();
-        }
-        this.resizeEditor_();
-    }
-};
+}
+Blockly.FieldTextArea = MythosFieldTextArea;

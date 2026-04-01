@@ -69,6 +69,11 @@ public class MythosEditor {
     // Static map to track which scripts are currently being edited (prevents duplicate windows)
     private static final Map<Script, MythosEditor> activeEditors = new HashMap<>();
 
+    // Static clipboard shared across all editor windows so that copy/paste works
+    // between separate WebView instances (each has its own JS heap).
+    // Holds the JSON string produced by block.toCopyData() in Blockly v12.
+    private static volatile String sharedBlockClipboard = null;
+
     Scope scope;
     Script script;
     Stage primaryStage;
@@ -142,8 +147,13 @@ public class MythosEditor {
 
     public void applyChanges() {
         try {
-            String xml = controller.getScriptXml()
-                    .replaceFirst(Pattern.quote("<block"), "<block xmlns=\"outlaw\"");
+            String rawXml = controller.getScriptXml();
+            // Blockly v12 workspaceToDom prepends <variables>...</variables> when the
+            // workspace contains variables.  Strip anything before the first <block so
+            // the XML parser sees exactly one root element.
+            int blockStart = rawXml.indexOf("<block");
+            String xml = blockStart >= 0 ? rawXml.substring(blockStart) : rawXml;
+            xml = xml.replaceFirst(Pattern.quote("<block"), "<block xmlns=\"outlaw\"");
             JAXBContext context = JAXBContext.newInstance("org.badvision.outlaweditor.data.xml");
             Unmarshaller unmarshaller = context.createUnmarshaller();
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -152,7 +162,9 @@ public class MythosEditor {
             Document doc = db.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
             JAXBElement<Block> b = unmarshaller.unmarshal(doc, Block.class);
             script.setBlock(b.getValue());
-        } catch (JAXBException | ParserConfigurationException | SAXException | IOException ex) {
+        } catch (Exception ex) {
+            // Catch Exception (not just checked exceptions) so that JSException or any
+            // other RuntimeException from the JS bridge does not prevent close() from running.
             Logger.getLogger(MythosEditor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -288,6 +300,28 @@ public class MythosEditor {
             });
             return message.toString();
         }
+    }
+
+    /**
+     * Called from JS when a block is copied (Ctrl/Cmd+C).
+     * Stores the Blockly v12 copy-data JSON in a static field so that all
+     * open editor windows can access it, enabling cross-window paste.
+     *
+     * @param json the JSON string returned by block.toCopyData() in Blockly v12
+     */
+    public void setClipboard(String json) {
+        sharedBlockClipboard = json;
+    }
+
+    /**
+     * Called from JS on paste (Ctrl/Cmd+V) to retrieve the cross-window
+     * clipboard data stored by the most recent setClipboard() call.
+     *
+     * @return the JSON string previously stored by setClipboard(), or null if
+     *         nothing has been copied yet
+     */
+    public String getClipboard() {
+        return sharedBlockClipboard;
     }
 
     public void log(String message) {

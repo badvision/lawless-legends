@@ -14,7 +14,7 @@
         <title>MythOS Script Editor</title>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
-        <script type="text/javascript" src="../../msg/js/en.js"></script>
+        <script type="text/javascript" src="../../msg/en.js"></script>
         <script type="text/javascript" src="../js/mythos_uncompressed.js"></script>
         <style>
             body {
@@ -38,10 +38,12 @@
                 overflow: hidden;
             }
             #blocklyDiv {
-                height: 700px; 
+                position: absolute;
+                height: 700px;
                 width: 990px;
                 overflow: hidden;
             }
+
         </style>
     </head>
     <body>
@@ -49,10 +51,7 @@
             <div id="blocklyDiv"></div>
         </div>
     <xml id="toolbox" style="display: none">
-        <category id="variables" name="Variables">
-            <block type="variables_set"></block>
-            <block type="variables_get"></block>
-        </category>
+        <category id="variables" name="Variables" custom="VARIABLE"></category>
         <category id="functions" name="Functions">
             <category id="globalFunctions" name="Global"></category>
             <category id="localFunctions" name="Local"></category>
@@ -96,35 +95,35 @@
             <block type="text_print"></block>
             <block type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_println"></block>
             <block type="text_println">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_printnum"></block>
             <block type="text_storybook">
                 <value name="INTRO">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
                 <value name="SHORT">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
                 <value name="LONG">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT"></field>
-                    </block>
+                    </shadow>
                 </value>                
             </block>
             <block type="text_getanykey"></block>
@@ -183,9 +182,9 @@
             <!-- Press any key -->
             <block inline="false" type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">(press any key)</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block type="text_getanykey"></block>
@@ -198,9 +197,9 @@
                 <next>
                     <block type="text_print">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>                            
+                            </shadow>                            
                         </value>
                         <next>
                             <block type="text_getanykey">
@@ -209,9 +208,9 @@
                                         <next>
                                             <block type="text_print">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>                            
+                                                    </shadow>                            
                                                 </value>
                                             </block>                                            
                                         </next>
@@ -229,16 +228,16 @@
                 <next>
                     <block inline="false" type="text_println">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="false" type="text_print">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">(press any key)</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block type="text_getanykey">
@@ -256,9 +255,9 @@
             <!-- Exit -->
             <block inline="false" type="text_print">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">Leave?</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block inline="false" type="controls_if">
@@ -287,9 +286,9 @@
                 <next>
                     <block inline="false" type="text_println">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">Text</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="true" type="variables_set">
@@ -311,25 +310,25 @@
                                                             </block>
                                                         </value>
                                                         <value name="B">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">correct response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                     </block>
                                                 </value>
                                                 <statement name="DO0">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Affirmative Response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"></block>
@@ -341,16 +340,16 @@
                                                 <statement name="ELSE">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Negative Response</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey">
@@ -386,9 +385,9 @@
                         <next>
                             <block inline="false" type="text_print">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Already beat boss</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                             </block>
                         </next>
@@ -400,16 +399,16 @@
                         <next>
                             <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Pre-boss fight message</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block inline="false" type="text_print">
                                         <value name="VALUE">
-                                            <block type="text">
+                                            <shadow type="text">
                                                 <field name="TEXT">(press any key)</field>
-                                            </block>
+                                            </shadow>
                                         </value>
                                         <next>
                                             <block type="text_getanykey">
@@ -424,16 +423,16 @@
                                                                         <next>
                                                                             <block inline="false" type="text_println">
                                                                                 <value name="VALUE">
-                                                                                    <block type="text">
+                                                                                    <shadow type="text">
                                                                                         <field name="TEXT">winning message</field>
-                                                                                    </block>
+                                                                                    </shadow>
                                                                                 </value>
                                                                                 <next>
                                                                                     <block inline="false" type="text_print">
                                                                                         <value name="VALUE">
-                                                                                            <block type="text">
+                                                                                            <shadow type="text">
                                                                                                 <field name="TEXT">(press any key)</field>
-                                                                                            </block>
+                                                                                            </shadow>
                                                                                         </value>
                                                                                         <next>
                                                                                             <block type="interaction_give_item">
@@ -471,9 +470,9 @@
                         <next>
                             <block inline="false" type="text_println">
                                 <value name="VALUE">
-                                    <block type="text">
+                                    <shadow type="text">
                                         <field name="TEXT">Question Y/N</field>
-                                    </block>
+                                    </shadow>
                                 </value>
                                 <next>
                                     <block inline="false" type="controls_if">
@@ -507,16 +506,16 @@
                                                                 <next>
                                                                     <block inline="false" type="text_println">
                                                                         <value name="VALUE">
-                                                                            <block type="text">
+                                                                            <shadow type="text">
                                                                                 <field name="TEXT">text for sold</field>
-                                                                            </block>
+                                                                            </shadow>
                                                                         </value>
                                                                         <next>
                                                                             <block inline="false" type="text_print">
                                                                                 <value name="VALUE">
-                                                                                    <block type="text">
+                                                                                    <shadow type="text">
                                                                                         <field name="TEXT">(press any key)</field>
-                                                                                    </block>
+                                                                                    </shadow>
                                                                                 </value>
                                                                                 <next>
                                                                                     <block type="interaction_give_item">
@@ -539,16 +538,16 @@
                                                         <next>
                                                             <block inline="false" type="text_println">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">Text for no sale</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block inline="false" type="text_print">
                                                                         <value name="VALUE">
-                                                                            <block type="text">
+                                                                            <shadow type="text">
                                                                                 <field name="TEXT">(press any key)</field>
-                                                                            </block>
+                                                                            </shadow>
                                                                         </value>
                                                                         <next>
                                                                             <block type="text_getanykey"></block>
@@ -575,9 +574,9 @@
             <!-- Treasure -->
             <block inline="false" type="text_println">
                 <value name="VALUE">
-                    <block type="text">
+                    <shadow type="text">
                         <field name="TEXT">Text Y/N</field>
-                    </block>
+                    </shadow>
                 </value>
                 <next>
                     <block inline="false" type="controls_if">
@@ -597,16 +596,16 @@
                                         <next>
                                             <block inline="false" type="text_println">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                                 <next>
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">(press any key)</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block type="text_getanykey"></block>
@@ -622,16 +621,16 @@
                                         <next>
                                             <block inline="false" type="text_println">
                                                 <value name="VALUE">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Text</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                                 <next>
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">(press any key)</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block type="interaction_give_item">
@@ -659,9 +658,9 @@
                 <next>
                     <block inline="false" type="text_println" id="3">
                         <value name="VALUE">
-                            <block type="text">
+                            <shadow type="text">
                                 <field name="TEXT">TEXT</field>
-                            </block>
+                            </shadow>
                         </value>
                         <next>
                             <block inline="false" type="controls_if">
@@ -677,9 +676,9 @@
                                                     </block>
                                                 </value>
                                                 <value name="B">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">use</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                             </block>
                                         </value>
@@ -692,9 +691,9 @@
                                                     </block>
                                                 </value>
                                                 <value name="B">
-                                                    <block type="text">
+                                                    <shadow type="text">
                                                         <field name="TEXT">Item?</field>
-                                                    </block>
+                                                    </shadow>
                                                 </value>
                                             </block>
                                         </value>
@@ -713,16 +712,16 @@
                                                 <statement name="DO0">
                                                     <block inline="false" type="text_print">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Text</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"/>
@@ -734,16 +733,16 @@
                                                 <statement name="ELSE">
                                                     <block inline="false" type="text_println">
                                                         <value name="VALUE">
-                                                            <block type="text">
+                                                            <shadow type="text">
                                                                 <field name="TEXT">Text</field>
-                                                            </block>
+                                                            </shadow>
                                                         </value>
                                                         <next>
                                                             <block inline="false" type="text_print">
                                                                 <value name="VALUE">
-                                                                    <block type="text">
+                                                                    <shadow type="text">
                                                                         <field name="TEXT">(press any key)</field>
-                                                                    </block>
+                                                                    </shadow>
                                                                 </value>
                                                                 <next>
                                                                     <block type="text_getanykey"/>
@@ -767,9 +766,329 @@
     <script>
         var blocklyArea = document.getElementById('blocklyArea');
         var blocklyDiv = document.getElementById('blocklyDiv');
+
+        // JavaFX WebKit compatibility: MouseEvent.x and MouseEvent.y are not
+        // part of the original DOM Level 3 MouseEvent spec and are absent in
+        // older WebKit builds embedded in JavaFX.  Blockly v12 uses event.x/y
+        // to compute where to place a new workspace comment (in the context-menu
+        // "Add Comment" callback).  When they are undefined the coordinate
+        // becomes NaN → defaults to 0,0 → every new comment appears at the
+        // top-left of the workspace regardless of where the user right-clicked.
+        // Map x/y to clientX/clientY, which ARE always available.
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
-                {path: '../../', toolbox: document.getElementById('toolbox'), sounds: false});
+                {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
+
+        // Blockly v12 bug workaround: in JavaFX's immediate-render mode,
+        // child blocks (value-input shadows and next-chain blocks) are
+        // prematurely removed from the render dirty-queue before the parent
+        // block is initialized, so they never receive a renderEfficiently()
+        // call.  Re-queuing every descendant after the block is fully placed
+        // (deferred via setTimeout so positionNewBlock has already run) fixes
+        // both the "white blips" and the missing shadow-value-input blocks.
+        Mythos.workspace.addChangeListener(function(event) {
+            if (event.type === Blockly.Events.BLOCK_CREATE) {
+                var blockId = event.blockId;
+                setTimeout(function() {
+                    var block = Mythos.workspace.getBlockById(blockId);
+                    if (!block || block.isDisposed()) return;
+                    var descendants = block.getDescendants(false);
+                    for (var i = descendants.length - 1; i >= 0; i--) {
+                        var b = descendants[i];
+                        if (b.queueRender && !b.isDisposed()) b.queueRender();
+                    }
+                }, 0);
+            }
+        });
+
+        // Cross-window clipboard bridge (JavaFX WebView has isolated JS contexts per window).
+        // Blockly v12 stores copy/paste state in module-level JS variables, so a block
+        // copied in Window A is invisible to Window B.  We fix this by:
+        //   Copy  – after Blockly copies internally (stashing data in its own module vars),
+        //           read the stash back via getLastCopiedData() and push the JSON to Java
+        //           via Mythos.editor.setClipboard().
+        //   Paste – pull the Java-side data, parse it, inject it into Blockly's stash via
+        //           setLastCopiedData() + setLastCopiedWorkspace(), then call
+        //           Blockly.clipboard.paste(Mythos.workspace) with ONE argument so that
+        //           paste() reads from the stash (which we just populated) rather than
+        //           receiving copyData directly.  This matches how Blockly's own shortcut
+        //           handler drives paste and avoids the two-arg path that bypasses the
+        //           stash-based workspace resolution.
+        (function() {
+            function toJson(obj) {
+                try { return JSON.stringify(obj); } catch(e) { return null; }
+            }
+            function fromJson(str) {
+                try { return str ? JSON.parse(str) : null; } catch(e) { return null; }
+            }
+
+            document.addEventListener('keydown', function(e) {
+                var isCopy  = (e.ctrlKey || e.metaKey) && e.key === 'c';
+                var isPaste = (e.ctrlKey || e.metaKey) && e.key === 'v';
+
+                if (isCopy) {
+                    // Defer so Blockly's own copy handler (which runs synchronously on
+                    // the element's bubble phase) has already stashed its copy data
+                    // before we read it back.
+                    setTimeout(function() {
+                        try {
+                            if (!Mythos.editor) {
+                                console.warn('[Mythos] copy: Mythos.editor not set');
+                                return;
+                            }
+                            // Read what Blockly just stashed – more reliable than
+                            // re-calling toCopyData() on the (possibly-unfocused) block.
+                            var copyData = Blockly.clipboard.getLastCopiedData
+                                ? Blockly.clipboard.getLastCopiedData()
+                                : null;
+                            console.warn('[Mythos] copy: copyData=' + (copyData ? 'present' : 'null'));
+                            if (!copyData) return;
+                            var json = toJson(copyData);
+                            if (json) {
+                                Mythos.editor.setClipboard(json);
+                                console.warn('[Mythos] copy: setClipboard done, len=' + json.length);
+                            }
+                        } catch(err) {
+                            console.warn('[Mythos] copy error: ' + err);
+                        }
+                    }, 0);
+                }
+
+                if (isPaste) {
+                    // Pull the Java-side clipboard, inject into Blockly's stash, then
+                    // let paste() read from the stash (one-arg form).
+                    // We only preventDefault/stopPropagation AFTER confirming we have
+                    // valid data, so a same-window paste (no Java clipboard) still works.
+                    try {
+                        if (!Mythos.editor) return;
+                        var json = Mythos.editor.getClipboard();
+                        // Log to confirm data arrives across the JS/Java bridge.
+                        Mythos.editor.log('paste clipboard: ' + json);
+                        if (!json) return;
+                        var copyData = fromJson(json);
+                        if (!copyData) return;
+                        // Populate Blockly's stash so the one-arg paste() call below
+                        // (and Blockly's own preconditionFn) see consistent state.
+                        Blockly.clipboard.setLastCopiedData(copyData);
+                        // Point the stashed workspace at our own workspace so that
+                        // Blockly's preconditionFn resolves correctly.
+                        Blockly.clipboard.setLastCopiedWorkspace(Mythos.workspace);
+                        // Prevent Blockly's shortcut handler from firing a second paste
+                        // now that the stash is primed and we are about to paste.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // One-arg form: paste(workspace) – Blockly reads copyData and
+                        // workspace from the stash we just set above.  This is how
+                        // Blockly's own Ctrl+V shortcut handler drives paste internally.
+                        Blockly.clipboard.paste(Mythos.workspace);
+                    } catch(err) {
+                        Mythos.editor && Mythos.editor.log('paste error: ' + err);
+                    }
+                }
+            }, true /* capture – fires before any element-level bubble handlers */);
+        })();
+
+        // Blockly v12 undo-delete bug workaround:
+        //
+        // When a block chain is deleted, Blockly calls block.unplug() to
+        // disconnect the block from its parent BEFORE creating the BlockDelete
+        // event.  Because disconnectInternal() suppresses BLOCK_MOVE events for
+        // blocks that are "dying" (disposing==true), no undo record of the
+        // parent connection is ever created.  On undo, BlockDelete.run(false)
+        // recreates the block at its saved canvas coordinates but with no
+        // connection – it floats disconnected on the canvas.
+        //
+        // Fix: monkeypatch BlockSvg.prototype.dispose to record the parent
+        // connection just before unplug() erases it, then monkeypatch
+        // BlockDelete.prototype.run to reconnect the restored block after
+        // append() has recreated it.
+        //
+        // Middle-of-chain fix:
+        // When deleting B from A→B→C, unplug(healStack=true) fires BEFORE
+        // captureConnInfo, so at capture time B.prev→A.next and B.next→C.prev
+        // are both still live.  We record both parentId (A) and nextBlockId (C).
+        // On undo we must:
+        //   1. Disconnect C from A.next (the healed connection)
+        //   2. Connect B to A.next
+        //   3. Connect C to B.next
+        // Simply calling pConn.connect(bPrev) when A.next is occupied by C
+        // causes Blockly v12 to walk to the end of the chain and append B
+        // there instead of inserting it in the middle.  Explicit
+        // disconnect-then-connect avoids that misplacement.
+        (function() {
+            // Side-table: blockId → {parentId, nextBlockId, inputName, isNext}
+            // 'isNext' = true  → block's previousConnection was attached to
+            //                    the parent's nextConnection (statement chain).
+            //                    nextBlockId holds the id of the block that was
+            //                    immediately after the deleted block (may be null).
+            // 'isNext' = false → block's outputConnection was inside a value
+            //                    input of the parent; inputName holds that name.
+            var _connInfo = {};
+
+            // Helper: record parent connection info for block 'blk' into
+            // _connInfo.  Must be called before unplug() erases the connections.
+            function captureConnInfo(blk) {
+                if (!Blockly.Events.isEnabled()) return;
+                var blockId = blk.id;
+                if (blk.previousConnection && blk.previousConnection.isConnected()) {
+                    var parentConn = blk.previousConnection.targetConnection;
+                    if (parentConn) {
+                        // Also capture the block immediately after blk (C in A→B→C)
+                        // while the connection is still intact.
+                        var nextBlockId = null;
+                        if (blk.nextConnection && blk.nextConnection.isConnected()) {
+                            var nextConn = blk.nextConnection.targetConnection;
+                            if (nextConn) {
+                                nextBlockId = nextConn.getSourceBlock().id;
+                            }
+                        }
+                        var parentBlkForConn = parentConn.getSourceBlock();
+                        // Determine whether the parent connection is the block-chaining
+                        // nextConnection or a statement input (DO0, DO1, ELSE, etc.).
+                        // Both have ConnectionType.NEXT_STATEMENT so we compare by identity.
+                        // IF blocks, for example, have no nextConnection on the same level
+                        // as their THEN/ELSE inputs — we must look up the input by name.
+                        var stmtInputName = null;
+                        if (parentConn !== parentBlkForConn.nextConnection) {
+                            for (var i = 0; i < parentBlkForConn.inputList.length; i++) {
+                                var inp = parentBlkForConn.inputList[i];
+                                if (inp.connection && inp.connection === parentConn) {
+                                    stmtInputName = inp.name;
+                                    break;
+                                }
+                            }
+                        }
+                        _connInfo[blockId] = {
+                            parentId: parentBlkForConn.id,
+                            nextBlockId: nextBlockId,
+                            stmtInputName: stmtInputName, // null = chain; non-null = statement input
+                            isNext: true
+                        };
+                    }
+                } else if (blk.outputConnection && blk.outputConnection.isConnected()) {
+                    var parentConn = blk.outputConnection.targetConnection;
+                    if (parentConn) {
+                        var parentBlock = parentConn.getSourceBlock();
+                        var inputName = null;
+                        for (var i = 0; i < parentBlock.inputList.length; i++) {
+                            var inp = parentBlock.inputList[i];
+                            if (inp.connection && inp.connection === parentConn) {
+                                inputName = inp.name;
+                                break;
+                            }
+                        }
+                        _connInfo[blockId] = {
+                            parentId: parentBlock.id,
+                            inputName: inputName,
+                            isNext: false
+                        };
+                    }
+                }
+            }
+
+            // Patch BlockSvg.prototype.dispose to capture parent connection
+            // info before unplug() clears it.  We must patch BlockSvg (the
+            // rendered subclass) rather than Block because BlockSvg.dispose
+            // calls this.unplug() itself before delegating to super.dispose(),
+            // so patching Block.prototype.dispose would be too late.
+            var _origDispose = Blockly.BlockSvg.prototype.dispose;
+            Blockly.BlockSvg.prototype.dispose = function(healStack, animate) {
+                captureConnInfo(this);
+                return _origDispose.call(this, healStack, animate);
+            };
+
+            // Patch BlockDelete.prototype.run to reconnect after undo.
+            //
+            // Undo sequence for "delete B from chain A→B→C":
+            //   Undo event group: [BlockDelete-B, BlockMove-C]
+            //   e[0].run(false): BlockDelete → B recreated floating; A.next→C
+            //   e[1].run(false): BlockMove   → C moves from A.next to B.next
+            //
+            // We inject the correct reconnection inside BlockDelete.run(false).
+            // Because setRecordUndo=false during undo replay, these extra
+            // connect/disconnect calls are not pushed onto the undo stack.
+            //
+            // For the middle-of-chain case we explicitly:
+            //   1. Save C (= parentBlock.nextConnection.targetBlock())
+            //   2. Disconnect C from A.next
+            //   3. Connect B to A.next
+            //   4. Connect C to B.next (if B has no existing next block)
+            // This keeps the subsequent BlockMove-C event consistent: it will
+            // attempt to move C from wherever it currently is to B.next, which
+            // is a no-op if C is already there – harmless either way.
+            var BlockDelete = Blockly.Events.BlockDelete;
+            var _origRun = BlockDelete.prototype.run;
+            BlockDelete.prototype.run = function(forward) {
+                _origRun.call(this, forward);
+                if (!forward && this.blockId) {
+                    var info = _connInfo[this.blockId];
+                    if (info) {
+                        delete _connInfo[this.blockId];
+                        var ws = this.getEventWorkspace_();
+                        var restoredBlock = ws.getBlockById(this.blockId);
+                        var parentBlock   = ws.getBlockById(info.parentId);
+                        if (restoredBlock && !restoredBlock.isDisposed() &&
+                                parentBlock && !parentBlock.isDisposed()) {
+                            try {
+                                if (info.isNext) {
+                                    // Resolve the parent connection: sequential chain or
+                                    // statement input (e.g. IF THEN/ELSE branch).
+                                    var pConn;
+                                    if (info.stmtInputName !== null && info.stmtInputName !== undefined) {
+                                        var stmtInput = parentBlock.getInput(info.stmtInputName);
+                                        pConn = stmtInput ? stmtInput.connection : null;
+                                    } else {
+                                        pConn = parentBlock.nextConnection;
+                                    }
+                                    var bPrevConn = restoredBlock.previousConnection;
+                                    if (pConn && bPrevConn) {
+                                        // If A.next is occupied (by C, the healed block),
+                                        // disconnect C first so that connect() places B
+                                        // immediately after A rather than walking to the
+                                        // end of the chain and appending there.
+                                        var displacedBlock = null;
+                                        if (pConn.isConnected()) {
+                                            displacedBlock = pConn.targetBlock();
+                                            pConn.disconnect();
+                                        }
+
+                                        // Connect B after A.
+                                        pConn.connect(bPrevConn);
+
+                                        // Re-attach the displaced block (C) after B,
+                                        // but only if B's next slot is still free.
+                                        // The subsequent BlockMove-C undo event will
+                                        // also attempt this; whichever runs first
+                                        // establishes the connection.
+                                        if (displacedBlock &&
+                                                !displacedBlock.isDisposed() &&
+                                                restoredBlock.nextConnection &&
+                                                !restoredBlock.nextConnection.isConnected() &&
+                                                displacedBlock.previousConnection) {
+                                            restoredBlock.nextConnection.connect(
+                                                displacedBlock.previousConnection);
+                                        }
+                                    }
+                                } else if (info.inputName !== null) {
+                                    // Reconnect: parent value-input ↔ restored.outputConnection
+                                    var input = parentBlock.getInput(info.inputName);
+                                    var cConn = restoredBlock.outputConnection;
+                                    if (input && input.connection && cConn) {
+                                        // Disconnect any block currently occupying the
+                                        // value input before re-inserting the restored block.
+                                        if (input.connection.isConnected()) {
+                                            input.connection.disconnect();
+                                        }
+                                        input.connection.connect(cConn);
+                                    }
+                                }
+                            } catch(e) { /* ignore – best-effort reconnect */ }
+                        }
+                    }
+                }
+            };
+        })();
+
         var onresize = function (e) {
             // Compute the absolute coordinates and dimensions of blocklyArea.
             var element = blocklyArea;

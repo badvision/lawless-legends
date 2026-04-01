@@ -156,7 +156,7 @@
         </xs:sequence>
         <xs:attribute name="inline" type="xs:boolean"/>
         <xs:attribute name="type" use="required" type="xs:NCName"/>
-        <xs:attribute name="id" type="xs:integer"/>
+        <xs:attribute name="id" type="xs:string"/>
         <xs:attribute name="uri" type="xs:string"/>
         <xs:attribute name="local" type="xs:string"/>
         <xs:attribute name="x" type="xs:integer"/>
@@ -192,6 +192,8 @@
     </xs:complexType>
     <xs:complexType name="value">
         <xs:sequence>
+            <!-- shadow comes before block: Blockly v12 emits shadow defaults before any real block -->
+            <xs:element minOccurs="0" maxOccurs="unbounded" name="shadow" type="tns:block"/>
             <xs:element minOccurs="0" maxOccurs="unbounded" name="block" type="tns:block"/>
         </xs:sequence>
         <xs:attribute name="name" use="required" type="xs:NCName"/>

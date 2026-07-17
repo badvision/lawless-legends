@@ -1,0 +1,76 @@
+name: Build OutlawEditor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+            label: macOS-arm64
+          - os: windows-latest
+            label: win64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build
+        working-directory: OutlawEditor
+        run: mvn -B clean package -DskipTests
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        working-directory: OutlawEditor
+        run: |
+          jpackage \
+            --type dmg \
+            --name OutlawEditor \
+            --app-version "3.5" \
+            --vendor "The 8-Bit Bunch" \
+            --module-path "target/OutlawEditor.jar:target/lib" \
+            --module outlaweditor/org.badvision.outlaweditor.Application \
+            --java-options '--add-exports javafx.controls/com.sun.javafx.scene.control.behavior=org.controlsfx.controls' \
+            --java-options '--add-exports javafx.base/com.sun.javafx.event=org.controlsfx.controls' \
+            --dest dist
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        working-directory: OutlawEditor
+        shell: pwsh
+        run: |
+          $libJars = (Get-ChildItem target\lib -Filter *.jar | ForEach-Object { $_.FullName }) -join ";"
+          $modulePath = "target\OutlawEditor.jar;$libJars"
+          jpackage `
+            --type app-image `
+            --name OutlawEditor `
+            --app-version "3.5" `
+            --vendor "The 8-Bit Bunch" `
+            --module-path "$modulePath" `
+            --module outlaweditor/org.badvision.outlaweditor.Application `
+            --java-options '--add-exports javafx.controls/com.sun.javafx.scene.control.behavior=org.controlsfx.controls' `
+            --java-options '--add-exports javafx.base/com.sun.javafx.event=org.controlsfx.controls' `
+            --dest dist
+          Compress-Archive -Path dist\OutlawEditor -DestinationPath dist\OutlawEditor-win64.zip
+
+      - name: Upload artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OutlawEditor-${{ matrix.label }}
+          path: OutlawEditor/dist/*.dmg
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OutlawEditor-${{ matrix.label }}
+          path: OutlawEditor/dist/OutlawEditor-win64.zip

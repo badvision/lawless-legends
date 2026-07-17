@@ -167,7 +167,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
                 if (object == null) {
                     return "";
                 }
-                return String.valueOf(object.getCategory() + "/" + object.getName());
+                return (object.getCategory() != null ? object.getCategory() : "") + "/" + (object.getName() != null ? object.getName() : "");
             }
 
             @Override
@@ -255,7 +255,7 @@ public class TileEditorTabControllerImpl extends TileEditorTabController {
         Tile t = getCurrentTile();
         tileSelector.getItems().clear();
         List<Tile> allTiles = ApplicationState.getInstance().getGameData().getTile();
-        allTiles.sort(Comparator.comparing((Tile o) -> String.valueOf(o.getCategory())).thenComparing(o -> String.valueOf(o.getName())));
+        allTiles.sort(Comparator.comparing((Tile o) -> o.getCategory() != null ? o.getCategory() : "").thenComparing(o -> o.getName() != null ? o.getName() : ""));
         tileSelector.getItems().addAll(allTiles);
         tileSelector.getSelectionModel().select(allTiles.indexOf(getCurrentTile()));
         setCurrentTile(t);

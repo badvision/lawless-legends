@@ -433,14 +433,14 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         ApplicationState.getInstance().getGameData().getTile().stream().forEach((Tile t) -> {
             WritableImage img = TileUtils.getImage(t, ApplicationState.getInstance().getCurrentPlatform());
             ImageView iv = new ImageView(img);
-            String category = String.valueOf(t.getCategory());
+            String category = t.getCategory() != null ? t.getCategory() : "";
             Menu categoryMenu = submenus.get(category);
             if (categoryMenu == null) {
                 categoryMenu = new Menu(category);
                 submenus.put(category, categoryMenu);
             }
             final Menu theMenu = categoryMenu;
-            RadioMenuItem tileSelection = new RadioMenuItem(String.valueOf(t.getName()), iv);
+            RadioMenuItem tileSelection = new RadioMenuItem(t.getName() != null ? t.getName() : "", iv);
             tileSelection.setToggleGroup(tileGroup);
             if (getCurrentEditor() != null && getCurrentEditor().getCurrentTile() == t) {
                 tileGroup.selectToggle(tileSelection);

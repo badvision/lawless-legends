@@ -60,7 +60,7 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
                 if (object == null) {
                     return "";
                 }
-                return String.valueOf(object.getCategory()) + "/" + String.valueOf(object.getName());
+                return (object.getCategory() != null ? object.getCategory() : "") + "/" + (object.getName() != null ? object.getName() : "");
             }
 
             @Override
@@ -269,8 +269,8 @@ public class ImageEditorTabControllerImpl extends ImageEditorTabController {
         imageSelector.getItems().clear();
         List<Image> allImages = ApplicationState.getInstance().getGameData().getImage();
         allImages.sort(Comparator
-                .comparing((Image o) -> String.valueOf(o.getCategory()))
-                .thenComparing(o -> String.valueOf(o.getName())));
+                .comparing((Image o) -> o.getCategory() != null ? o.getCategory() : "")
+                .thenComparing(o -> o.getName() != null ? o.getName() : ""));
 
         imageSelector.getItems().addAll(allImages);
         imageSelector.getSelectionModel().select(i);

@@ -147,6 +147,7 @@ public class MythosScriptEditorController
     }
 
     public String getScriptXml() {
-        return String.valueOf(editorView.getEngine().executeScript("Mythos.getScriptXml();"));
+        Object result = editorView.getEngine().executeScript("Mythos.getScriptXml();");
+        return result != null ? String.valueOf(result) : "";
     }
 }

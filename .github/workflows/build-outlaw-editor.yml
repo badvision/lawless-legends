@@ -34,7 +34,7 @@ jobs:
           jpackage \
             --type dmg \
             --name OutlawEditor \
-            --app-version "3.5" \
+            --app-version "3.6" \
             --vendor "The 8-Bit Bunch" \
             --module-path "target/OutlawEditor.jar:target/lib" \
             --module outlaweditor/org.badvision.outlaweditor.Application \
@@ -52,7 +52,7 @@ jobs:
           jpackage `
             --type app-image `
             --name OutlawEditor `
-            --app-version "3.5" `
+            --app-version "3.6" `
             --vendor "The 8-Bit Bunch" `
             --module-path "$modulePath" `
             --module outlaweditor/org.badvision.outlaweditor.Application `

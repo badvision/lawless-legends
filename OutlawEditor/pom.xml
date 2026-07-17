@@ -5,7 +5,7 @@
     <artifactId>OutlawEditor</artifactId>
     <name>OutlawEditor</name>
     <packaging>jar</packaging>
-    <version>3.5</version>
+    <version>3.6</version>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <mainClass>org.badvision.outlaweditor.Application</mainClass>

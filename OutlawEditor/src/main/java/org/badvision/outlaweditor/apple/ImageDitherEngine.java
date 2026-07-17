@@ -14,6 +14,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -125,6 +126,7 @@ public class ImageDitherEngine {
 
     int[] scanline;
     List<Integer> pixels;
+    byte[] prelimScreen;
 
     public byte[] dither(boolean propagateError) {
         primaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
@@ -135,6 +137,27 @@ public class ImageDitherEngine {
         }
         scanline = new int[3];
         pixels = new ArrayList<>();
+
+        if (platform == Platform.AppleII) {
+            // Two preliminary passes without error propagation to build up realistic
+            // right-neighbor context (bb2, next) before the real pass.  Pass 1 uses
+            // next=0 (unavoidable on a left-to-right scan); pass 2 uses pass-1 estimates,
+            // fixing second-order context errors near byte boundaries.
+            for (int pass = 0; pass < 2; pass++) {
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < bufferWidth; x += 2) {
+                        hiresDither(y, x, false);
+                    }
+                }
+                prelimScreen = Arrays.copyOf(screen, screen.length);
+                // Reset state for next pass
+                Arrays.fill(screen, (byte) 0);
+                primaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
+                secondaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
+                tertriaryScratchBuffer = generateScratchBuffer(source.getPixelReader(), pixelRenderWidth, height);
+            }
+        }
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < bufferWidth; x += 2) {
                 switch (platform) {
@@ -147,19 +170,24 @@ public class ImageDitherEngine {
                 }
             }
         }
+        prelimScreen = null;
         return screen;
     }
 
     void hiresDither(int y, int x, boolean propagateError) {
         int bb1 = screen[(y + startY) * bufferWidth + startX + x] & 255;
-        int bb2 = screen[(y + startY) * bufferWidth + startX + x + 1] & 255;
+        // Use preliminary screen for right-neighbor context to avoid nextByte=0 artifact.
+        // In a left-to-right scan, x+1 and x+2 are unprocessed (zero) in the screen buffer,
+        // causing wrong NTSC color predictions at byte boundaries (beaded-curtain pattern).
+        byte[] ctxSrc = (prelimScreen != null) ? prelimScreen : screen;
+        int bb2 = ctxSrc[(y + startY) * bufferWidth + startX + x + 1] & 255;
         int next = bb2 & 127;  // Preserve hi-bit so last pixel stays solid, it is a very minor detail
         int prev = 0;
         if ((x + startX) > 0) {
             prev = screen[(y + startY) * bufferWidth + startX + x - 1] & 255;
         }
         if ((x + startX) < (bufferWidth - 2)) {
-            next = screen[(y + startY) * bufferWidth + startX + x + 2] & 255;
+            next = ctxSrc[(y + startY) * bufferWidth + startX + x + 2] & 255;
         }
         // First byte, compared with a sliding window encompassing the previous byte, if any.
         long leastError = Long.MAX_VALUE;

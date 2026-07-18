@@ -2617,6 +2617,8 @@ class A2PackPartitions
                     }
                 }
             }
+            if (map?.@name =~ /\s*3D$/ && !exits[map.@name])
+                printWarning("3D map '${map.@name}' has no exits")
         }
         new File("build/src/mapScripts/gen_mapexits.s.new").withWriter { out ->
             out.println("; Generated code - DO NOT MODIFY BY HAND\n")

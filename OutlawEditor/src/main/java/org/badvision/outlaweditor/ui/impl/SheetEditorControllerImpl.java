@@ -293,7 +293,7 @@ public class SheetEditorControllerImpl extends SheetEditorController {
                     String value = getValue(row.getOtherAttributes(), col.getName());
                     SpreadsheetCell cell =  SpreadsheetCellType.STRING.createCell(rowNum, colNum, 1, 1, value);
                     cell.itemProperty().addListener((ObservableValue<? extends Object> val, Object oldVal, Object newVal) -> {
-                        setValue(row.getOtherAttributes(), col.getName(), String.valueOf(newVal));
+                        setValue(row.getOtherAttributes(), col.getName(), newVal == null ? "" : String.valueOf(newVal));
                     });
                     rowUi.add(cell);
                     colNum++;

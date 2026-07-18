@@ -3757,11 +3757,15 @@ class A2PackPartitions
             withContext("step $orderNum")
             {
                 def triggerFlag = row.@"Trigger-Flag"?.trim()
+                if (triggerFlag && triggerFlag.equalsIgnoreCase("null"))
+                    triggerFlag = null
                 if (triggerFlag) {
                     triggerFlag = triggerFlag.toLowerCase()
                     assert gameFlags.containsKey(triggerFlag) : "unrecognized flag '$triggerFlag'"
                 }
                 def triggerItem = row.@"Trigger-Item"?.trim()
+                if (triggerItem && triggerItem.equalsIgnoreCase("null"))
+                    triggerItem = null
                 if (triggerItem) {
                     triggerItem = triggerItem.toLowerCase()
                     assert itemNameToFunc.containsKey(toSingular(triggerItem)) : "unrecognized item '$triggerItem'"

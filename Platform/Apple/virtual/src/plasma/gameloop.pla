@@ -3123,7 +3123,9 @@ def cheatCmd()#1
   pModule()=>godmode_cheatCmd(cmdKey)
 
   mmgr(FREE_MEMORY, pModule)
-  textureControl(TRUE)
+  if !curPortrait
+    textureControl(TRUE)
+  fin
   return 0
 end
 

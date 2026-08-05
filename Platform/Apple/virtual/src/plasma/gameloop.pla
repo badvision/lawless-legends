@@ -905,6 +905,7 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display a string using the font engine but not its parser. Also, interpret "^A" as ctrl chars.
+// Does not do auto line-breaking; if you need that, use displayStr instead.
 export asm rawDisplayStr(pStr)#0
   +asmPlasmNoRet 1
   sta pTmp
@@ -1368,6 +1369,8 @@ def recordDisplay(str)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display a string with the font engine, and auto-line-breaking.
+// (for no auto line breaking, use rawDisplayStr)
 export def displayStr(str)#0
   if recordMode; recordDisplay(str); fin
   internalDisplayStr(str)

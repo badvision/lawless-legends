@@ -15,6 +15,7 @@ include "diskops.plh"
 include "party.plh"
 include "sndseq.plh"
 include "import.plh"
+include "autoplay.plh"
 include "gen_images.plh"
 include "gen_modules.plh"
 include "gen_players.plh"
@@ -214,6 +215,17 @@ asm setPrinter(enable)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setAutoPlay()#0
+  word autoplayModule
+  mmgr(START_LOAD, 1) // autoplay module in partition 1
+  autoplayModule = mmgr(QUEUE_LOAD, MOD_AUTOPLAY<<8 | RES_TYPE_MODULE)
+  mmgr(LOCK_MEMORY, autoplayModule)
+  mmgr(FINISH_LOAD, 0)
+  autoplayModule()=>autoplay_init()
+  setPrinter(TRUE)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def setRecordMode(enable)#0
   recordMode = enable
   if recordMode; recordSeed = 1; fin
@@ -237,7 +249,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Load and display the title screen, set up everything in memory
 def startup()#1
-  word pEngine, pFont, pMarks, pExpand, expanderSize, pSound
+  word pEngine, pFont, pMarks, pExpand, expanderSize, pSound, pAutoPlay
 
   // Decide if we're running on Jace (if so, later we'll need to credit the music). This has
   // to be done with a mostly blank, text mode, screen.
@@ -712,6 +724,11 @@ def newOrLoadGame(ask)#1
         break
       is 'R'
         setRecordMode(1)
+        disableSound
+        displayMenu(existing)
+        break
+      is 'A'
+        setAutoPlay()
         disableSound
         displayMenu(existing)
         break

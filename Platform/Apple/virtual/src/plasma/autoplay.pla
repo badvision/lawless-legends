@@ -1,0 +1,71 @@
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Copyright (C) 2026 The 8-Bit Bunch. Licensed under the Apache License, Version 1.1
+// (the "License"); you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at <http://www.apache.org/licenses/LICENSE-1.1>.
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+// ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+include "gamelib.plh"
+include "globalDefs.plh"
+include "autoplay.plh"
+
+// Exported functions go here. First a predef for each one, then a table with function pointers
+// in the same order as the constants are defined in the the header.
+predef _init()#1
+word[] funcTbl = @_init
+
+word real_DisplayChar
+
+asm _defs
+
+; Use hi-bit ASCII for Apple II
+!convtab "../../include/hiBitAscii.ct"
+
+; Headers
+!source "../../include/global.i"
+!source "../../include/plasma.i"
+!source "../../include/mem.i"
+!source "../../include/fontEngine.i"
+
+end
+
+asm patched_DisplayChar
+  inc $7D0
+  jmp 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Patch vectors in the font engine so we can record actions here
+asm patchDisplayChar(func)#1
+  +asmPlasmRet 1
+  tax   ; save param lo
+  lda DisplayChar+1
+  pha
+  lda DisplayChar+2
+  pha
+  stx DisplayChar+1
+  sty DisplayChar+2
+  pla
+  tay
+  pla
+  rts
+end
+
+def _init()#1
+  word patched, prev
+  puts("autoplay init\n")
+  patched = @patched_DisplayChar
+  prev = patchDisplayChar(patched)
+  *(patched+4) = prev
+  printf1("patched=$%x\n", patched)
+  printf1("prev=$%x\n", prev)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Boilerplate module initialization code
+return @funcTbl
+done

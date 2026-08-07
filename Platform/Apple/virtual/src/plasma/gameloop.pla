@@ -3116,7 +3116,7 @@ def cheatCmd()#1
   byte key
   word pModule
 
-  // We don't use laodEngine, since godmode may use it too, and we'd get double modules
+  // We don't use loadEngine, since godmode may use it too, and we'd get double modules
   textureControl(FALSE) // seems to be necessary for teleport-to-3d to work right
   flipToPage1
   mmgr(START_LOAD, 1) // code is in partition 1
@@ -3181,7 +3181,7 @@ def switchMoveMode()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Set up the command table for 3D mode
+// Set up the command table, with differences for 2D vs 3D mode
 def initCmds()#0
 
   // Clear the command table
@@ -3740,6 +3740,9 @@ def startGame(firstTime, ask)#0
     mmgr(REQUEST_MEMORY, HEAP_SIZE)
     mmgr(LOCK_MEMORY,    HEAP_BOTTOM)
   fin
+  // Make sure the autoplay module is low in mem, in case we need to keep it
+  mmgr(QUEUE_LOAD, MOD_AUTOPLAY<<8 | RES_TYPE_MODULE)
+  // Now get the DiskOps module that handles most of the work.
   p_module = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   q_playerDeath = FALSE

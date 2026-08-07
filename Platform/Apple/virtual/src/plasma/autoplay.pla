@@ -30,15 +30,58 @@ asm _defs
 !source "../../include/mem.i"
 !source "../../include/fontEngine.i"
 
+tmp         = $2   ; length 2
+pTmp        = $4   ; length 2
+
 end
 
 asm patched_DisplayChar
-  inc $7D0
+!zone
+  clc
+  bcc fakedc
+realdc:
   jmp 0
+fakedc:
+  +prStr : !text "DisplayChar ",0
+  +prA
+  +crout
+  inc $7D0
+  clc
+  bcc realdc
+end
+
+asm patched_DisplayStr
+!zone
+  clc
+  bcc fakeds
+realds:
+  jmp 0
+fakeds:
+  +prStr : !text "DisplayStr ",0
+
+  sty pTmp+1
+  sta pTmp
+
+  ldy #0
+  lda (pTmp),y
+  tax
+  beq empty
+nextch:
+  iny
+  lda (pTmp),y
+  ora #$80
+  +safeCout
+  dex
+  bne nextch
+empty:
+  ldy pTmp+1
+  lda pTmp
+  inc $7D1
+  clc
+  bcc realds
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Patch vectors in the font engine so we can record actions here
 asm patchDisplayChar(func)#1
   +asmPlasmRet 1
   tax   ; save param lo
@@ -54,14 +97,35 @@ asm patchDisplayChar(func)#1
   rts
 end
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+asm patchDisplayStr(func)#1
+  +asmPlasmRet 1
+  tax   ; save param lo
+  lda DisplayStr+1
+  pha
+  lda DisplayStr+2
+  pha
+  stx DisplayStr+1
+  sty DisplayStr+2
+  pla
+  tay
+  pla
+  rts
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def _init()#1
   word patched, prev
   puts("autoplay init\n")
+
   patched = @patched_DisplayChar
   prev = patchDisplayChar(patched)
   *(patched+4) = prev
-  printf1("patched=$%x\n", patched)
-  printf1("prev=$%x\n", prev)
+
+  patched = @patched_DisplayStr
+  prev = patchDisplayStr(patched)
+  *(patched+4) = prev
+
   return 0
 end
 

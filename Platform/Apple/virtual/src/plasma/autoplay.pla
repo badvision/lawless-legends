@@ -17,14 +17,8 @@ include "autoplay.plh"
 predef _init()#1
 word[] funcTbl = @_init
 
-word real_DisplayChar
-
 asm _defs
-
-; Use hi-bit ASCII for Apple II
 !convtab "../../include/hiBitAscii.ct"
-
-; Headers
 !source "../../include/global.i"
 !source "../../include/plasma.i"
 !source "../../include/mem.i"
@@ -32,100 +26,133 @@ asm _defs
 
 tmp         = $2   ; length 2
 pTmp        = $4   ; length 2
-
 end
 
-asm patched_DisplayChar
+asm my_rawDisplayStr(pStr)#0
 !zone
-  clc
-  bcc fakedc
-realdc:
-  jmp 0
-fakedc:
-  +prStr : !text "DisplayChar ",0
-  +prA
-  +crout
-  inc $7D0
-  clc
-  bcc realdc
-end
-
-asm patched_DisplayStr
-!zone
-  clc
-  bcc fakeds
-realds:
-  jmp 0
-fakeds:
-  +prStr : !text "DisplayStr ",0
-
-  sty pTmp+1
+  +prStr : !text "rawDisplayStr: ",0
+  lda evalStkL,x
   sta pTmp
-
+  lda evalStkH,x
+  sta pTmp+1
+  tya
+  pha
+  txa
+  pha
   ldy #0
   lda (pTmp),y
   tax
-  beq empty
-nextch:
+  beq donech
+prchr:
   iny
   lda (pTmp),y
   ora #$80
+  cmp #$A0
+  bcs notctrl
+  +prChr '^'
+  adc #$40
+notctrl:
   +safeCout
   dex
-  bne nextch
-empty:
-  ldy pTmp+1
-  lda pTmp
-  inc $7D1
-  clc
-  bcc realds
+  bne prchr
+donech:
+  +crout
+  pla
+  tax
+  pla
+  tay
+  jmp _asmPlasm
+end
+
+asm my_displayChar(ch)#0
+!zone
+  +prStr : !text "displayChar: ",0
+  lda evalStkL,x
+  ora #$80
+  cmp #$A0
+  bcs notctrl2
+  +prChr '^'
+  adc #$40
+notctrl2:
+  +safeCout
+  +crout
+  jmp _asmPlasm
+end
+
+asm my_clearWindow()#0
+!zone
+  +prStr : !text "clearWindow",$8D,0
+  jmp _asmPlasm
+end
+
+asm my_setWindow()#0
+!zone
+  +prStr : !text "setWindow: ",0
+  tya
+  pha
+  
+  lda evalStkH+3,x
+  tay
+  lda evalStkL+3,x
+  +prYA
+
+  lda evalStkH+2,x
+  tay
+  lda evalStkL+2,x
+  +prYA
+  
+  lda evalStkH+1,x
+  tay
+  lda evalStkL+1,x
+  +prYA
+  
+  lda evalStkH,x
+  tay
+  lda evalStkL,x
+  +prYA
+  
+  +crout
+  
+  pla
+  tay
+  jmp _asmPlasm
+end
+
+def stub_displayStr(str)#0
+end
+
+def my_displayStr(str)#0
+  puts("displayStr: ")
+  puts(str)
+  crout
+  stub_displayStr(str)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm patchDisplayChar(func)#1
-  +asmPlasmRet 1
-  tax   ; save param lo
-  lda DisplayChar+1
-  pha
-  lda DisplayChar+2
-  pha
-  stx DisplayChar+1
-  sty DisplayChar+2
-  pla
-  tay
-  pla
-  rts
+def patch_plasma(pOrig, pMy, pStub)#0
+  *(pStub+3) = *(@displayStr+3)
+  *(@displayStr+3) = *(pMy+3)
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-asm patchDisplayStr(func)#1
-  +asmPlasmRet 1
-  tax   ; save param lo
-  lda DisplayStr+1
-  pha
-  lda DisplayStr+2
-  pha
-  stx DisplayStr+1
-  sty DisplayStr+2
-  pla
-  tay
-  pla
-  rts
+def patch_asm(pOrig, pMy)#0
+  *(pOrig+3) = pMy
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _init()#1
-  word patched, prev
+  word pOrig, pMy, pStub
+  ^$c051
   puts("autoplay init\n")
+  
+  patch_plasma(@displayStr, @my_displayStr, @stub_displayStr)
+  patch_asm(@rawDisplayStr, @my_rawDisplayStr)
+  patch_asm(@displayChar, @my_displayChar)
+  patch_asm(@clearWindow, @my_clearWindow)
+  patch_asm(@setWindow, @my_setWindow)
 
-  patched = @patched_DisplayChar
-  prev = patchDisplayChar(patched)
-  *(patched+4) = prev
-
-  patched = @patched_DisplayStr
-  prev = patchDisplayStr(patched)
-  *(patched+4) = prev
-
+  rdkey
+  ^$c050
   return 0
 end
 

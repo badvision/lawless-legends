@@ -215,21 +215,26 @@ asm setPrinter(enable)#0
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+def setRecordMode(enable)#0
+  recordMode = enable
+  if recordMode; recordSeed = 1; fin
+  setPrinter(recordMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 def setAutoPlay()#0
-  word autoplayModule
+  word autoplayModule, pAux
   mmgr(START_LOAD, 1) // autoplay module in partition 1
   autoplayModule = mmgr(QUEUE_LOAD, MOD_AUTOPLAY<<8 | RES_TYPE_MODULE)
   mmgr(LOCK_MEMORY, autoplayModule)
   mmgr(FINISH_LOAD, 0)
   autoplayModule()=>autoplay_init()
-  setPrinter(TRUE)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def setRecordMode(enable)#0
-  recordMode = enable
-  if recordMode; recordSeed = 1; fin
-  setPrinter(recordMode)
+  // Very unusual: free the bytecode; the only part left of autoplay after init is the asm
+  pAux = auxMmgr(FIND_IN_MEM, MOD_AUTOPLAY<<8 | RES_TYPE_BYTECODE)
+  auxMmgr(UNLOCK_MEMORY, pAux)
+  auxMmgr(FREE_MEMORY, pAux)
+  setRecordMode(1)
+  recordMode = 'A'  // special value which also evaluates to true
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -616,7 +621,11 @@ def printVersion(windowWidth)#0
 
   buildString()
   if recordMode
-    puts("recording")
+    if recordMode == 'A'
+      puts("autoplay - recording")
+    else
+      puts("recording")
+    fin
   else
     puts(diskLimit ?? "Demo" :: "Full")
     puts(" Version ")

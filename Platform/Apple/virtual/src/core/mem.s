@@ -1753,8 +1753,6 @@ mem_free: !zone
 	bne invalParam		; must unlock block before freeing it (also prevents accidentally freeing $0000)
 	jsr .unmark
 	and #$F			; get down to just the type, without the flags
-	cmp #RES_TYPE_BYTECODE	; explicitly freeing bytecode obj?
-	beq .fatal		; that is not allowed
 	cmp #RES_TYPE_MODULE	; freeing a module?
 	bne .done		; no, all done
 	lda #RES_TYPE_BYTECODE	; we need to look for the corresponding 
@@ -1768,7 +1766,6 @@ mem_free: !zone
 	and #$3F		; remove the 'active' and 'locked' flags
 	sta tSegType,x		; store flags back
 .done	rts			; all done
-.fatal	jsr inlineFatal : !text "NfBcode", 0 ; no free of bytecode allowed
 
 ;------------------------------------------------------------------------------
 mem_calcFree: !zone

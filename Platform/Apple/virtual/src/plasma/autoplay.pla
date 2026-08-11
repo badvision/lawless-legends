@@ -118,22 +118,6 @@ asm my_setWindow()#0
   jmp _asmPlasm
 end
 
-def stub_displayStr(str)#0
-end
-
-def my_displayStr(str)#0
-  puts("displayStr: ")
-  puts(str)
-  crout
-  stub_displayStr(str)
-end
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-def patch_plasma(pOrig, pMy, pStub)#0
-  *(pStub+3) = *(@displayStr+3)
-  *(@displayStr+3) = *(pMy+3)
-end
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def patch_asm(pOrig, pMy)#0
   *(pOrig+3) = pMy
@@ -141,18 +125,10 @@ end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def _init()#1
-  word pOrig, pMy, pStub
-  ^$c051
-  puts("autoplay init\n")
-  
-  patch_plasma(@displayStr, @my_displayStr, @stub_displayStr)
   patch_asm(@rawDisplayStr, @my_rawDisplayStr)
   patch_asm(@displayChar, @my_displayChar)
   patch_asm(@clearWindow, @my_clearWindow)
   patch_asm(@setWindow, @my_setWindow)
-
-  rdkey
-  ^$c050
   return 0
 end
 

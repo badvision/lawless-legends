@@ -253,6 +253,11 @@ def showOnMap()#0
   automapModule = mmgr(QUEUE_LOAD, MOD_AUTOMAP<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
 
+  // Print the actual coordinates in auto-play mode
+  if recordMode == 'A'
+    printf2("Quest dest: X=%d Y=%d\n", questMapX[mapIdx], questMapY[mapIdx])
+  fin
+
   // Show the position of this quest on the map
   automapModule()=>automap_show(questMapX[mapIdx], questMapY[mapIdx])
 

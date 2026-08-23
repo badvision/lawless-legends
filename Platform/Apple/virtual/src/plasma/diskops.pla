@@ -193,18 +193,14 @@ asm setPrinter(enable)#0
   asl
   beq +
   ; check slot ID bytes for printer in slot 1. If no printer, don't redirect.
-  lda $C105
-  cmp #$38
-  bne +
-  lda $C107
+  ; Note: On Virtual II, c105=38, c107=18, c10b=01, c10c&F0=10.
+  ; But none of that works on AppleWin. 
+  ; Going to a simpler check that works on both: c100=18, c101=b0
+  lda $C100
   cmp #$18
   bne +
-  lda $C10B
-  cmp #$01
-  bne +
-  lda $C10C
-  and #$F0
-  cmp #$10  ; printers appear to be $1x
+  lda $C101
+  cmp #$B0
   bne +
   ; redirect cout to the printer
   ldx #0

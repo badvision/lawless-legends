@@ -121,6 +121,7 @@ byte cmdKey  // last command key pressed
 word cmdTbl[96]   // ASCII $00..$5F
 byte frameLoaded = 0
 word curEngine = NULL
+byte curEngineNum = 0
 word pModUtil3d = NULL
 word util3d = NULL
 export word pResourceIndex = NULL
@@ -1380,10 +1381,13 @@ end
 // Read a string from the keyboard using the font manager, and intern it to the heap.
 export def getStringResponse()#1
   word p
+  if recordMode
+    puts("STRING:")
+  fin
   rawGetStr()
   rawDisplayStr("\n") // so Outlaw user doesn't have to remember to make a newline
   if recordMode
-    puts("STRING:"); puts($200); crout
+    puts($200); crout
   fin
   return mmgr(HEAP_INTERN, $200)
 end
@@ -1538,7 +1542,8 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Get a keystroke and convert it to upper case
 export def getUpperKey()#1
-  byte key
+  word x, y
+  byte key, dir
 
   // Make sure same text displays on both hi-res while animating
   if anyAnims and textDrawn and mapIs3D and texturesLoaded
@@ -1547,6 +1552,12 @@ export def getUpperKey()#1
 
   // Signal autoplay that we are waiting: printer dump ends with "KEY:" and no key yet.
   if recordMode
+    getPos(@x, @y)
+    printf1("MAP %d: ", mapNum)
+    if mapIs3D
+      printf1("F=%d ", getDir())
+    fin
+    printf3("X=%d Y=%d ENG=%d\n", x, y, curEngineNum)
     puts("KEY:")
   fin
 
@@ -2067,6 +2078,7 @@ def initMap(x, y, dir)#0
   util3d = NULL
   pCurMap = NULL
   curEngine = NULL
+  curEngineNum = 0
   pGlobalTileset = NULL
   curPortrait = NULL
   curPortraitNum = 0
@@ -2128,6 +2140,7 @@ def initMap(x, y, dir)#0
   textDrawn = FALSE
   textClearCountdown = 0
   curEngine = NULL
+  curEngineNum = 0
   curPortrait = NULL
   curPortraitNum = 0
   curFullscreenImg = NULL
@@ -2833,6 +2846,7 @@ def loadEngine(moduleNum)#1
   clearPortrait()
   textureControl(FALSE) // also flips to page 1
   mmgr(START_LOAD, 1) // code is in partition 1
+  curEngineNum = moduleNum
   curEngine = mmgr(QUEUE_LOAD, moduleNum<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
   return curEngine()  // return function table
@@ -2843,6 +2857,7 @@ def returnFromEngine(render)#0
   if curEngine
     mmgr(FREE_MEMORY, curEngine)
     curEngine = NULL
+    curEngineNum = 0
     loadMainFrameImg()
     if preEnginePortraitNum
       setPortrait(preEnginePortraitNum)
@@ -3743,7 +3758,7 @@ def startGame(firstTime, ask)#0
   if firstTime
     // Temporarily reserve a big chunk of aux mem to keep diskops bytecode out
     auxMmgr(SET_MEM_TARGET, $800) // well above where resource index loads at startup
-    auxMmgr(REQUEST_MEMORY, $7F00) // plenty of room for resource index + temp expander
+    auxMmgr(REQUEST_MEMORY, $7800) // plenty of room for resource index + temp expander
     // Reserve space for the small-object heap
     mmgr(SET_MEM_TARGET, HEAP_BOTTOM)
     mmgr(REQUEST_MEMORY, HEAP_SIZE)

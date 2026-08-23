@@ -1527,10 +1527,9 @@ export def recordKey()#1
       key = (^kbd & $7F) - $40
       ^kbdStrobe
     fin
-    puts("KEY:")
     recordChar(key)
-    puts(" SEED:$")
-    printHex(recordSeed)
+    //puts(" SEED:$")
+    //printHex(recordSeed)
     crout
   fin
   return key
@@ -1544,6 +1543,11 @@ export def getUpperKey()#1
   // Make sure same text displays on both hi-res while animating
   if anyAnims and textDrawn and mapIs3D and texturesLoaded
     copyWindow(0)
+  fin
+
+  // Signal autoplay that we are waiting: printer dump ends with "KEY:" and no key yet.
+  if recordMode
+    puts("KEY:")
   fin
 
   // Now wait for a key, and animate while doing so.
@@ -1769,6 +1773,11 @@ end
 export def loadFrameImg(img)#0
   // Skip redundant reload
   if frameLoaded == img; return; fin
+
+  // If in autoplay mode, record frame img load as it essentially clears all text
+  if recordMode == 'A'
+    printf1("Loading frame %d.\n", img)
+  fin
 
   // Free prev img and/or portrait (if any)
   if curFullscreenImg

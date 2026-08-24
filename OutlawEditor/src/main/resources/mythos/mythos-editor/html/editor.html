@@ -1104,9 +1104,40 @@
             blocklyDiv.style.top = y + 'px';
             blocklyDiv.style.width = blocklyArea.offsetWidth + 'px';
             blocklyDiv.style.height = blocklyArea.offsetHeight + 'px';
+            // BUGFIX (blank canvas / missing trashcan): Blockly's own window-resize
+            // handler is registered before this listener, so on every resize event it
+            // reads the container size from the PREVIOUS event and never syncs the
+            // current change.  When the page parses before the JavaFX window has a
+            // size (viewport 0x0 at inject time) the workspace SVG ends up 0x0 and
+            // no later event repairs it -- the toolbox (a content-sized HTML div)
+            // stays visible while the canvas and trashcan vanish.  Sync explicitly,
+            // after the style change, so the SVG converges on every event.
+            if (Mythos.workspace && Blockly.svgResize) {
+                try { Blockly.svgResize(Mythos.workspace); } catch (e) {}
+            }
         };
         window.addEventListener('resize', onresize, false);
         onresize();
+
+        // BUGFIX (blank canvas, part 2): if the page parsed before the JavaFX
+        // window was laid out (viewport 0x0 at inject time), no resize event is
+        // guaranteed to follow -- WebKit may not deliver a 0-to-real-size event on
+        // all platforms.  Converge via requestAnimationFrame until the area has a
+        // real size.  onresize() (above) syncs Blockly after each update.
+        (function() {
+            if (blocklyArea.offsetWidth > 0 && blocklyArea.offsetHeight > 0) return;
+            var tries = 0;
+            (function tick() {
+                if (blocklyArea.offsetWidth > 0 && blocklyArea.offsetHeight > 0) {
+                    onresize();
+                    return;
+                }
+                if (++tries < 150) {
+                    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
+                    else setTimeout(tick, 16);
+                }
+            })();
+        })();
     </script>
 </body>
 </html>

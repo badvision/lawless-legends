@@ -66,10 +66,31 @@ public class MythosScriptEditorController
             editorView.getEngine().getLoadWorker().stateProperty().addListener(
                     (value, old, newState) -> {
                         if (newState == State.SUCCEEDED) {
-                            mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
-                            mythos.setMember("editor", editor);
-                            editorView.getEngine().executeScript(loadScript);
-                            editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));");
+                            try {
+                                mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
+                                if (mythos == null) {
+                                    // The page scripts are not (or no longer) available in the
+                                    // JS engine; there is nothing to inject into.
+                                    editor.log("Mythos JS object not available when the editor page finished loading; script was not loaded");
+                                } else {
+                                    mythos.setMember("editor", editor);
+                                    // Wrap in a JS try/catch so an init failure (custom
+                                    // definitions, XML import) is logged instead of
+                                    // silently leaving an empty workspace.
+                                    editorView.getEngine().executeScript(
+                                            "(function(){ try { " + loadScript
+                                                    + " } catch(e) { Mythos.editor.log('Mythos load script failed: ' + e); } })()");
+                                }
+                            } catch (Exception ex) {
+                                editor.log("Failed to initialize the Mythos editor page: " + ex);
+                            } finally {
+                                // Keep the canvas in sync with the window size even when the
+                                // load script above fails (blank-canvas recovery path).
+                                try {
+                                    editorView.getEngine().executeScript("window.dispatchEvent(new Event('resize'));");
+                                } catch (Exception ignored) {
+                                }
+                            }
                         }
                     });
 

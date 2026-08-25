@@ -29,6 +29,7 @@ import org.badvision.outlaweditor.ui.TileSelectModal;
 import org.badvision.outlaweditor.ui.ToolType;
 
 import jakarta.xml.bind.JAXBException;
+import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -73,6 +74,8 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     double tileHeight = getCurrentPlatform().tileRenderer.getHeight() * zoom;
     Color cursorAssistColor = new Color(0.2, 0.2, 1.0, 0.4);
     Script highlightedScript = null;
+    private final AtomicBoolean blinkVisible = new AtomicBoolean(true);
+    private AnimationTimer blinkTimer;
 
     @Override
     protected void onEntityUpdated() {
@@ -194,6 +197,25 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
     public void setSelectedScript(Script script) {
         selectedScript = script;
         highlightedScript = script;
+        // Start or stop the blink animation
+        if (script != null && blinkTimer == null) {
+            blinkTimer = new AnimationTimer() {
+                private long lastToggle = 0;
+                @Override
+                public void handle(long now) {
+                    if (now - lastToggle > 300_000_000) { // toggle every 300ms
+                        blinkVisible.set(!blinkVisible.get());
+                        lastToggle = now;
+                        redraw();
+                    }
+                }
+            };
+            blinkTimer.start();
+        } else if (script == null && blinkTimer != null) {
+            blinkTimer.stop();
+            blinkTimer = null;
+            blinkVisible.set(true);
+        }
     }
 
     public Script getSelectedScript() {
@@ -402,7 +424,7 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
             return false;
         }
         GraphicsContext gc = drawCanvas.getGraphicsContext2D();
-        if (highlightedScript != null && visibleScripts.contains(extraHighlight)) {
+        if (highlightedScript != null && visibleScripts.contains(extraHighlight) && blinkVisible.get()) {
             Color color = currentMap.getScriptColor(extraHighlight).get().brighter();
             color = Color.color(color.getRed(), color.getGreen(), color.getBlue(), 0.5);
             gc.setFill(color);
@@ -469,6 +491,10 @@ public class MapEditor extends Editor<Map, MapEditor.DrawMode> implements EventH
 
     @Override
     public void unregister() {
+        if (blinkTimer != null) {
+            blinkTimer.stop();
+            blinkTimer = null;
+        }
         drawCanvas.widthProperty().unbind();
         drawCanvas.heightProperty().unbind();
         anchorPane.getChildren().remove(drawCanvas);

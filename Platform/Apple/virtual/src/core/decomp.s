@@ -33,8 +33,9 @@ DEBUG	= 0
 decomp	!zone {
 	jsr .chkdst
 	ldy #0		; In lit loop Y must be zero
+        sec
 .fill1A	jsr .getbt2
-	jmp .fill1B
+	bne .fill1B     ; always taken
 
 .incdst	inc pDst+1
 .chkdst	ldx pDst+1
@@ -174,19 +175,19 @@ decomp	!zone {
 	bne .gshift	; always taken
 
 ; Get another 8 bits into our bit buffer. Destroys X. Preserves A. Requires Y=0.
+; Carry is always set on entry, Z always clear on exit
 ; Alternately, use .getbt2 to preserve X and destroy A
 .getbts	tax
 .getbt2	lda (pSrc),y
-	inc pSrc
-	beq .src3A
-.src3B	sec
 	rol
 	sta bits
 	txa
+	inc pSrc
+	beq .src3A
 	rts
 
 .src3A	inc pSrc+1
-	bne .src3B	; always taken
+	rts
 
 } ; end of zone
 

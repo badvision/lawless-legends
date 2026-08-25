@@ -2864,10 +2864,10 @@ def returnFromEngine(render)#0
     else
       clearPortrait()
     fin
-    textureControl(TRUE)
     mapNameHash = 0; showMapName(global=>s_mapName)
     clearTextWindow()
     if render
+      textureControl(TRUE)
       doRender()
     else
       needRender = TRUE

@@ -1815,9 +1815,12 @@ mem_find:
 	beq .notFound		; nope, pass to next loader
 .found	stx segNum		; save seg num for later
 	lda tSegType,x		; get flags
-	ora #$80		; reactivate if necessary
+	bmi .alrAct		; if already active, no need to re-activate
+	bit .findonly		; in find mode...
+	bmi .notFound		; ...don't count inactive as found (caller is checking for active)
+	ora #$80		; reactivate
 	sta tSegType,x		; save modified flag
-	lda tSegAdrHi,x		; get seg address hi
+.alrAct	lda tSegAdrHi,x		; get seg address hi
 	tay			; in Y for return
 	lda tSegAdrLo,x		; addr lo
 	tax			; in X for return

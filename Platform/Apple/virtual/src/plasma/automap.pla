@@ -1044,6 +1044,9 @@ def cursorWait(targetX, targetY)#1
   phase = 0
   targetOn = 0
   i = 100
+  if recordMode
+    puts("KEY:")
+  fin
   while ^kbd < 128
 
     // Blink the target on and off at a slower rate

@@ -618,10 +618,9 @@ def printVersion(windowWidth)#0
   buildString()
   if recordMode
     if recordMode == 'A'
-      puts("autoplay - recording")
-    else
-      puts("recording")
+      puts("autoplay - ")
     fin
+    puts("recording")
   else
     puts(diskLimit ?? "Demo" :: "Full")
     puts(" Version ")

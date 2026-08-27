@@ -422,7 +422,6 @@ def loadInternal()#1
   // Copy seed if in record mode
   if recordMode and p_loaded=>w_heapSize < (HEAP_SIZE-2)
     recordSeed = *(p_loaded + HEAP_SIZE - 2)
-    printf2("Got recordSeed $%x from $%x\n", recordSeed, p_loaded + HEAP_SIZE - 2)
   fin
 
   // Copy the heap up, and init it with the correct size.

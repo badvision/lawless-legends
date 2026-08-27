@@ -1532,8 +1532,6 @@ export def recordKey()#1
       ^kbdStrobe
     fin
     recordChar(key)
-    //puts(" SEED:$")
-    //printHex(recordSeed)
     crout
   fin
   return key
@@ -1557,8 +1555,8 @@ export def getUpperKey()#1
     if mapIs3D
       printf1("F=%d ", getDir())
     fin
-    printf3("X=%d Y=%d ENG=%d\n", x, y, curEngineNum)
-    puts("KEY:")
+    printf3("X=%d Y=%d ENG=%d", x, y, curEngineNum)
+    printf1(" SEED=$%x\nKEY:", recordSeed)
   fin
 
   // Now wait for a key, and animate while doing so.
@@ -3077,8 +3075,15 @@ def saveGame()#1
   // (also does a CHECK_MEM to be sure we never save corrupted heap)
   heapCollect()
 
-  // Copy heap data to main memory, and write it out.
+  // Copy heap data to main memory
   memcpy(HEAP_BOTTOM, LOAD_SAVE_BUF, HEAP_SIZE, 0)  // LC to low mem
+
+  // Copy seed if in record mode
+  if recordMode and global=>w_heapSize < (HEAP_SIZE-2)
+    *(LOAD_SAVE_BUF + HEAP_SIZE - 2) = recordSeed
+  fin
+
+  // And write out the heap
   rwGame(RWTS_WRITE)
 
   setWindow2()

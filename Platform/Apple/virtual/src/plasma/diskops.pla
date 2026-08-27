@@ -417,12 +417,20 @@ def loadInternal()#1
 
   // Can be duplicative since gameExists also loaded it, but is needed when re-loading (Ctrl-L)
   rwGame(RWTS_READ)
+  p_loaded = LOAD_SAVE_BUF
+
+  // Copy seed if in record mode
+  if recordMode and p_loaded=>w_heapSize < (HEAP_SIZE-2)
+    recordSeed = *(p_loaded + HEAP_SIZE - 2)
+    printf2("Got recordSeed $%x from $%x\n", recordSeed, p_loaded + HEAP_SIZE - 2)
+  fin
 
   // Copy the heap up, and init it with the correct size.
-  p_loaded = LOAD_SAVE_BUF
   memcpy(p_loaded, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC
   initHeap(p_loaded=>w_heapSize)
-  heapCollect() // make sure heap is valid, and record final size
+
+  // make sure heap is valid, and record final size
+  heapCollect()
 
   // Check the map marks for valid field sizes
   readDiskMarks; checkMarks

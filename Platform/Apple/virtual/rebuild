@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -ex
+
+rm -rf build game*.{2mg,dsk}
+pushd /Users/mhaye/plat/tools/ProRWTS && make clean && make && popd
+pushd /Users/mhaye/plat/tools/PLASMA/src && make clean && make && popd
+pushd /Users/mhaye/plat/tools/PackPartitions && rm -f dist/PackPartitions.jar && ant jar && popd
+java -ea -Djdk.xml.maxElementDepth=512 -jar ~/plat/tools/PackPartitions/dist/PackPartitions.jar data/world/world.xml
+

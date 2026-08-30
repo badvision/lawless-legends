@@ -1550,13 +1550,16 @@ export def getUpperKey()#1
 
   // Signal autoplay that we are waiting: printer dump ends with "KEY:" and no key yet.
   if recordMode
-    getPos(@x, @y)
-    printf1("MAP %d: ", mapNum)
-    if mapIs3D
-      printf1("F=%d ", getDir())
+    if recordMode == 'A'
+      getPos(@x, @y)
+      printf1("MAP %d: ", mapNum)
+      if mapIs3D
+        printf1("F=%d ", getDir())
+      fin
+      printf3("X=%d Y=%d ENG=%d", x, y, curEngineNum)
+      printf1(" SEED=$%x\n", recordSeed)
     fin
-    printf3("X=%d Y=%d ENG=%d", x, y, curEngineNum)
-    printf1(" SEED=$%x\nKEY:", recordSeed)
+    puts("KEY:")
   fin
 
   // Now wait for a key, and animate while doing so.

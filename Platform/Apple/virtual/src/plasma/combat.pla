@@ -775,7 +775,7 @@ def playerCombatChoose(pl)#0
         fin
       fin
       if canChange
-        displayStr("C)hange weapon, ")
+        displayStr("C)hg. weapon, ")
       fin
       displayStr("D)odge, ")
       canAdvance = (pl == global=>p_players) and (minEnemyDist() > 5) // only one advance per turn

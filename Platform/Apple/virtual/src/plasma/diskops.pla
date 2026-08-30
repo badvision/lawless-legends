@@ -420,9 +420,9 @@ def loadInternal()#1
   p_loaded = LOAD_SAVE_BUF
 
   // Copy seed if in record mode
-  if recordMode and p_loaded=>w_heapSize < (HEAP_SIZE-2)
-    recordSeed = *(p_loaded + HEAP_SIZE - 2)
-  fin
+  //if recordMode and p_loaded=>w_heapSize < (HEAP_SIZE-2)
+  //  recordSeed = *(p_loaded + HEAP_SIZE - 2)
+  //fin
 
   // Copy the heap up, and init it with the correct size.
   memcpy(p_loaded, HEAP_BOTTOM, HEAP_SIZE, 0)  // low mem to LC

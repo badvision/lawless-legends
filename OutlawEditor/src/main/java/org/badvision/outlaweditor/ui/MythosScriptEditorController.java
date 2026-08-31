@@ -66,6 +66,7 @@ public class MythosScriptEditorController
             editorView.getEngine().getLoadWorker().stateProperty().addListener(
                     (value, old, newState) -> {
                         if (newState == State.SUCCEEDED) {
+                            javafx.application.Platform.runLater(() -> {
                             try {
                                 mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
                                 if (mythos == null) {
@@ -91,6 +92,7 @@ public class MythosScriptEditorController
                                 } catch (Exception ignored) {
                                 }
                             }
+                            });
                         }
                     });
 

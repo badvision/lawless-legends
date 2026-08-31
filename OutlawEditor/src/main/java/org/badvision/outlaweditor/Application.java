@@ -127,6 +127,8 @@ public class Application extends javafx.application.Application implements Appli
             t.consume();
         });
         primaryStage.show();
+
+
     }
 
     /**

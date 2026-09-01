@@ -76,10 +76,6 @@ asm calcChecksum(doStore, pBuf, nPages, pSum)#0
   bpl -
   clc
 
-  ldx #$60
-  stx 0
-  jsr 0
-
 .pag
   pha               ; save # pages left
 .quad

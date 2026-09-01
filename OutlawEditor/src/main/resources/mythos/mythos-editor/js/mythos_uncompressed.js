@@ -24,60 +24,20 @@ if (typeof Mythos === "undefined") {
     }
     Mythos = {
         setScriptXml: function (xml) {
-            // Stage markers: each is flushed to the Java log via Mythos.editor.log().
-            // A hard WebKit VM termination ("JavaScript execution terminated") cannot be
-            // caught by a JS try/catch, so the LAST marker seen in the log identifies the
-            // exact stage that died on the failing (Windows) machine.
-            function slog(msg) {
-                try {
-                    if (Mythos.editor && Mythos.editor.log) { Mythos.editor.log(msg); }
-                    else if (console && console.log) { console.log(msg); }
-                } catch (e) { /* never let logging break the import */ }
-            }
-            var stage = 'start';
-            var tStart = Date.now();
-            try {
-                var ws = Mythos.workspace;
-                slog('[mythos-import] setScriptXml start, xml.length=' + (xml ? xml.length : 0));
-                stage = 'ws.clear()';
-                ws.clear();
-                var tClear = Date.now();
-                stage = 'DOMParser.parseFromString()';
-                var dom = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
-                var tParse = Date.now();
-                slog('[mythos-import] after parse, root=' + (dom ? dom.nodeName : 'null') + ' parseMs=' + (tParse - tClear));
-                stage = 'Blockly.Xml.domToWorkspace()';
-                var tDom0 = Date.now();
-                Blockly.Xml.domToWorkspace(dom, ws);
-                var tDom1 = Date.now();
-                var blockCount = ws.getAllBlocks(false).length;
-                slog('[mythos-import] after domToWorkspace, blocks=' + blockCount + ' domMs=' + (tDom1 - tDom0));
-                stage = 'addCustomVariables()';
-                // Re-register custom variables after ws.clear() wiped them.
-                // Must happen after domToWorkspace so we don't duplicate variables
-                // that Blockly already auto-created from <field name="VAR"> elements.
-                Mythos.addCustomVariables();
-                slog('[mythos-import] after addCustomVariables() varsMs=' + (Date.now() - tDom1));
-                stage = 'trim extra top blocks';
-                var topBlocks = ws.getTopBlocks(false);
-                var removed = 0;
-                while (topBlocks.length > 1) {
-                    topBlocks[topBlocks.length - 1].dispose();
-                    topBlocks = ws.getTopBlocks(false);
-                    removed++;
-                }
-                var renderedCount = 0;
-                var allBlocks = ws.getAllBlocks(false);
-                for (var i = 0; i < allBlocks.length; i++) { if (allBlocks[i].rendered) renderedCount++; }
-                slog('[mythos-import] setScriptXml done, topBlocks=' + topBlocks.length + ' removed=' + removed
-                     + ' rendered=' + renderedCount + '/' + allBlocks.length
-                     + ' totalMs=' + (Date.now() - tStart) + ' domMs=' + (tDom1 - tDom0));
-            } catch (e) {
-                slog('[mythos-import] FAILED at stage=' + stage + ' :: ' + (e && e.name) + ': ' + (e && e.message) + '\n' + (e && e.stack));
-                throw e;
+            var ws = Mythos.workspace;
+            ws.clear();
+            var dom = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+            Blockly.Xml.domToWorkspace(dom, ws);
+            // Re-register custom variables after ws.clear() wiped them.
+            // Must happen after domToWorkspace so we don't duplicate variables
+            // that Blockly already auto-created from <field name="VAR"> elements.
+            Mythos.addCustomVariables();
+            var topBlocks = ws.getTopBlocks(false);
+            while (topBlocks.length > 1) {
+                topBlocks[topBlocks.length - 1].dispose();
+                topBlocks = ws.getTopBlocks(false);
             }
         },
-
         getScriptXml: function () {
             return Blockly.Xml.workspaceToDom(Mythos.workspace).innerHTML;
         },
@@ -136,13 +96,10 @@ if (typeof Mythos === "undefined") {
                         typeConstructor.appendDummyInput()
                                 .appendField("Create " + userType.getName());
                         Mythos.each(userType.getAttribute(), function (attribute) {
-                            var attrName = attribute.getName();
-                            if (typeof attrName === 'string' && attrName.length > 0) {
-                                typeConstructor.appendValueInput(attrName)
-                                        .setAlign(Blockly.ALIGN_RIGHT)
-                                        .setCheck(attribute.getType())
-                                        .appendField(attrName);
-                            }
+                            typeConstructor.appendValueInput(attribute.getName())
+                                    .setAlign(Blockly.ALIGN_RIGHT)
+                                    .setCheck(attribute.getType())
+                                    .appendField(attribute.getName());
                         });
                     } catch (error) {
                         Mythos.editor.log(error);
@@ -158,7 +115,7 @@ if (typeof Mythos === "undefined") {
                         typeSetter.setNextStatement(true);
                         typeSetter.setOutput(false);
                         typeSetter.setTooltip(userType.getComment());
-                        typeSetter.appendValueInput('VALUE')
+                        typeSetter.appendValueInput()
                                 .setAlign(Blockly.ALIGN_LEFT)
                                 .appendField("Set")
                                 .appendField(new Blockly.FieldVariable(userType.getName()), "VAR")
@@ -195,20 +152,14 @@ if (typeof Mythos === "undefined") {
             var variables = Mythos.editor.getVariablesByType(userType.getName());
             var options = [];
             Mythos.each(variables, function (variable) {
-                var varName = variable.getName();
-                if (typeof varName === 'string' && varName.length > 0) {
-                    options.push([varName, varName]);
-                }
+                options.push([variable.getName(), variable.getName()]);
             });
             return new Blockly.FieldDropdown(options);
         },
         getAttributeDropdown: function (userType) {
             var options = [];
             Mythos.each(userType.getAttribute(), function (attribute) {
-                var attrName = attribute.getName();
-                if (typeof attrName === 'string' && attrName.length > 0) {
-                    options.push([attrName, attrName]);
-                }
+                options.push([attribute.getName(), attribute.getName()]);
             });
             return new Blockly.FieldDropdown(options);
         },
@@ -1222,8 +1173,6 @@ class MythosFieldTextArea extends Blockly.FieldTextInput {
         htmlInput.setAttribute('spellcheck', false);
         htmlInput.setAttribute('cols', 80);
         htmlInput.setAttribute('rows', 7);
-        // v13 accessibility: give the editing widget an accessible name
-        htmlInput.setAttribute('aria-label', 'Text value');
         div.style.fontSize = '11pt';
         div.style.width = '400px';
         div.style.background = 'transparent';

@@ -12,6 +12,27 @@
     <head>
         <meta charset="utf-8"></meta>
         <title>MythOS Script Editor</title>
+
+          <!-- JavaFX WebView perf fix (GS import O(n^2) -> O(n)). Blockly's useragent module
+               sets userAgent.JavaFx from navigator.userAgent, and render_management uses it to
+               force alwaysImmediatelyRender(): every queueRender() during domToWorkspace then
+               triggers a full synchronous doRenders() pass, so a 329-block script imports in
+               ~6.5s (O(n^2)). This WebView's requestAnimationFrame works (verified), so we hide
+               the 'JavaFX' token before Blockly reads it; Blockly then uses its normal rAF
+               batching path and the import renders exactly once. Blast radius = that one flag
+               (no other Blockly code checks JavaFx; our own UA use is mobile-only). No-op on
+               non-JavaFX browsers. -->
+          <script>
+              (function(){
+                  try {
+                      var orig = navigator.userAgent || '';
+                      if (/javaFx/i.test(orig)) {
+                          var clean = orig.replace(/JavaFx\/[0-9.]+/gi, '').replace(/JavaFx/gi, '');
+                          Object.defineProperty(navigator, 'userAgent', { configurable: true, get: function(){ return clean; } });
+                      }
+                  } catch(e) { /* leave UA untouched if defineProperty fails */ }
+              })();
+          </script>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
         <script type="text/javascript" src="../../msg/en.js"></script>
@@ -764,6 +785,33 @@
     </xml>
 
     <script>
+        // Forward uncaught JS errors to the Java log. The JavaFX WebView has no devtools
+        // console, so window.onerror is the only way to surface runtime errors -- including
+        // those thrown from event listeners and setTimeout callbacks that the load script's
+        // try/catch cannot reach. Returns false so the error is not swallowed.
+        (function() {
+            function toJava(msg) {
+                try {
+                    if (window.Mythos && window.Mythos.editor && window.Mythos.editor.log) {
+                        window.Mythos.editor.log(msg);
+                    } else if (console && console.error) {
+                        console.error(msg);
+                    }
+                } catch (e) { /* ignore */ }
+            }
+            window.onerror = function(message, source, lineno, colno, error) {
+                toJava('[js-onerror] ' + message + ' at ' + source + ':' + lineno + ':' + colno +
+                       ' stack=' + (error && error.stack ? error.stack : ''));
+                return false;
+            };
+            if (window.addEventListener) {
+                window.addEventListener('unhandledrejection', function(ev) {
+                    var r = ev && ev.reason;
+                    toJava('[js-unhandledrejection] ' + (r && r.message ? r.message : r) +
+                           ' stack=' + (r && r.stack ? r.stack : ''));
+                });
+            }
+        })();
         var blocklyArea = document.getElementById('blocklyArea');
         var blocklyDiv = document.getElementById('blocklyDiv');
 
@@ -778,6 +826,7 @@
         Mythos.initBlocks();
         Mythos.workspace = Blockly.inject(blocklyDiv,
                 {media: '../../media/', toolbox: document.getElementById('toolbox'), sounds: false});
+
 
         // Blockly v12 bug workaround: in JavaFX's immediate-render mode,
         // child blocks (value-input shadows and next-chain blocks) are

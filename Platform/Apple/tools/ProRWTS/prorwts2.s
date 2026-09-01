@@ -921,7 +921,10 @@ unrblockhi = unrelocdsk + (* - reloc)
 
 readdir
   !if allow_subdir = 1 {
-                jsr     prepdrive
+		; mhaye patch: commented this out because first call to prepdrive
+		; clears drive select bit (hi-bit) of reqcmd, causing second call
+		; to always select drive 0.
+                ;jsr     prepdrive
   } ;allow_subdir = 1
   !if might_exist = 1 {
                 lda     dirbuf + FILE_COUNT ;assuming only 256 files per subdirectory

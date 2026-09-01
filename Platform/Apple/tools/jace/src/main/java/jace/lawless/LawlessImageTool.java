@@ -30,6 +30,8 @@ import javafx.stage.FileChooser;
  */
 public class LawlessImageTool implements MediaConsumer {
 
+    private static final Logger LOGGER = Logger.getLogger(LawlessImageTool.class.getName());
+
     Optional<Label> icon = Optional.empty();
     MediaEntry gameMediaEntry;
     MediaFile gameMediaFile;
@@ -53,8 +55,64 @@ public class LawlessImageTool implements MediaConsumer {
 
     @Override
     public void insertMedia(MediaEntry e, MediaEntry.MediaFile f) throws IOException {
-        Utility.decision("Upgrade Game", "Do you want to attempt to preserve your save game?", "Yes", "No", () -> performGameUpgradeConfirmation(e, f), () -> replaceGameImageConfirmation(e, f));
+        // Validate the disk image before offering upgrade
+        if (!validateLawlessLegendsDisk(f.path)) {
+            // Not a Lawless Legends disk - show error and stop
+            if (Utility.isHeadlessMode()) {
+                System.err.println("Not a Lawless Legends disk - upgrade aborted");
+            } else {
+                javafx.application.Platform.runLater(() -> {
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.WARNING);
+                    alert.setTitle("Wrong Disk");
+                    alert.setHeaderText("Woah partner!");
+                    alert.setContentText(
+                        "We don't serve that kind of disk here.\n" +
+                        "(Please use a Lawless Legends disk to upgrade the game.)");
+                    alert.showAndWait();
+                });
+            }
+            return;
+        }
+
+        Utility.decision("Upgrade Game", "Do you want to attempt to preserve your save game?", "Yes", "No", () -> performGameUpgrade(e, f), () -> replaceGameImageConfirmation(e, f));
     }
+
+    /**
+     * Validates that the given disk image is a Lawless Legends game.
+     * Checks that:
+     * 1. The file is a full game disk (800KB or more)
+     * 2. The file contains a detectable game version string
+     *
+     * @param file The disk image file to validate
+     * @return true if it is a valid Lawless Legends game disk
+     */
+    private boolean validateLawlessLegendsDisk(File file) {
+        if (file == null || !file.exists()) {
+            LOGGER.warning("Disk validation failed: file does not exist");
+            return false;
+        }
+
+        // Check minimum file size - must be a full game disk (800KB+)
+        // This filters out small disks, partial copies, and other non-game files
+        long fileSize = file.length();
+        long minGameDiskSize = 819200L; // 800KB in bytes
+        if (fileSize < minGameDiskSize) {
+            LOGGER.warning("Disk validation failed: file too small (" + fileSize + " bytes, need " + minGameDiskSize + "+)");
+            return false;
+        }
+
+        // Extract version to verify this is a Lawless Legends game
+        String version = GameVersionReader.extractVersion(file);
+        if (version == null || version.trim().isEmpty()) {
+            LOGGER.warning("Disk validation failed: no game version detected (file: " + file.getName() + ")");
+            return false;
+        }
+
+        LOGGER.info("Disk validated: Lawless Legends version " + version + " (" + fileSize + " bytes)");
+        return true;
+    }
+
 
     public void performGameUpgradeConfirmation(MediaEntry e, MediaEntry.MediaFile f) {
         Utility.confirm("Upgrade Game",

@@ -12,6 +12,30 @@
     <head>
         <meta charset="utf-8"></meta>
         <title>MythOS Script Editor</title>
+
+          <!-- JavaFX WebView perf fix (GS import O(n^2) -> O(n)). Blockly's useragent module
+               sets userAgent.JavaFx from navigator.userAgent, and render_management uses it to
+               force alwaysImmediatelyRender(): every queueRender() during domToWorkspace then
+               triggers a full synchronous doRenders() pass, so a 329-block script imports in
+               ~6.5s (O(n^2)). This WebView's requestAnimationFrame works (verified), so we hide
+               the 'JavaFX' token before Blockly reads it; Blockly then uses its normal rAF
+               batching path and the import renders exactly once. Blast radius = that one flag
+               (no other Blockly code checks JavaFx; our own UA use is mobile-only). No-op on
+               non-JavaFX browsers.
+               Re-applied over v12.5.1: the same userAgent.JavaFx / alwaysImmediatelyRender
+               mechanism exists in v12 as well; the v12-era BLOCK_CREATE workaround further
+               down stays (redundant under rAF batching, harmless). -->
+          <script>
+              (function(){
+                  try {
+                      var orig = navigator.userAgent || '';
+                      if (/javaFx/i.test(orig)) {
+                          var clean = orig.replace(/JavaFx\/[0-9.]+/gi, '').replace(/JavaFx/gi, '');
+                          Object.defineProperty(navigator, 'userAgent', { configurable: true, get: function(){ return clean; } });
+                      }
+                  } catch(e) { /* leave UA untouched if defineProperty fails */ }
+              })();
+          </script>
         <script type="text/javascript" src="../../blockly_compressed.js"></script>
         <script type="text/javascript" src="../../blocks_compressed.js"></script>
         <script type="text/javascript" src="../../msg/en.js"></script>

@@ -2213,18 +2213,18 @@ readAndAdj:
 dbgrwts:
 	+prStr : !text $8d," rwts c/a=",0
 	bcs +
-	+prChr 'o'
+	+prChr 'o'		; opendir
 	bcc ++
-+	+prChr 'r'
-++	+prA
-	+prByte isAuxCmd
++	+prChr 'r'		; rdwrpart
+++	+prA			; command (0=seek, 1=read, 2=write)
+	+prByte isAuxCmd	; 00=main, 01=aux
 	+prStr : !text "l/d/s=",0
 	+prWord reqLen
 	+prWord pDst
 	+prWord pSrc
 	jsr callProRWTS
 	+prChr '='
-	+prA
+	+prA			; result: 0=success
 	+crout
 	rts
 }

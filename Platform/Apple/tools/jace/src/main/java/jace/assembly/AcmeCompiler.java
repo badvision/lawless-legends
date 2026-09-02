@@ -30,6 +30,7 @@ public class AcmeCompiler implements CompileResult<ByteBuffer> {
     Map<Integer, String> warnings = new LinkedHashMap<>();
     List<String> otherWarnings = new ArrayList<>();
     List<String> rawOutput = new ArrayList<>();
+    List<String> symbolTable = new ArrayList<>();
 
     @Override
     public boolean isSuccessful() {
@@ -59,6 +60,10 @@ public class AcmeCompiler implements CompileResult<ByteBuffer> {
     @Override
     public List<String> getRawOutput() {
         return rawOutput;
+    }
+
+    public List<String> getSymbolTable() {
+        return symbolTable;
     }
 
     public void compile(Program proxy) {

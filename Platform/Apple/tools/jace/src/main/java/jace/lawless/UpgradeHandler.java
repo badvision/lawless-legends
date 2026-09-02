@@ -250,17 +250,24 @@ public class UpgradeHandler {
         long startTime = System.currentTimeMillis();
         LOGGER.info("Starting silent upgrade - extracting save from backup: " + backupFile.getName());
 
+        byte[] saveGameData = null;
+
         try {
             // Extract save from old disk using readFile
-            byte[] saveGameData;
+            LOGGER.fine("Opening backup disk for read: " + backupFile.getAbsolutePath());
             try (ProDOSDiskImage reader = new ProDOSDiskImage(backupFile)) {
                 saveGameData = reader.readFile("GAME.1.SAVE");
             }
+            LOGGER.fine("Closed backup disk reader");
 
             if (saveGameData == null) {
                 LOGGER.info("No save game found in backup - booting clean");
-                String version = GameVersionReader.extractVersion(gameFile);
-                versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+                try {
+                    String version = GameVersionReader.extractVersion(gameFile);
+                    versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING, "Failed to update version info", e);
+                }
                 long duration = System.currentTimeMillis() - startTime;
                 LOGGER.info("Silent upgrade completed (no save) in " + duration + "ms");
                 return true;
@@ -268,17 +275,36 @@ public class UpgradeHandler {
 
             LOGGER.info("Found save game (" + saveGameData.length + " bytes) - transferring to new disk: " + gameFile.getName());
 
-            // Write save to new disk
+            // Write save to new disk with error checking
             long writeStartTime = System.currentTimeMillis();
+            LOGGER.fine("Opening new disk for write: " + gameFile.getAbsolutePath());
             try (ProDOSDiskImage writer = new ProDOSDiskImage(gameFile)) {
+                // First verify the disk is writable by checking it can be opened
                 writer.writeFile("GAME.1.SAVE", saveGameData, 0x00);
             }
+            LOGGER.fine("Closed disk writer");
             long writeDuration = System.currentTimeMillis() - writeStartTime;
             LOGGER.info("Save game write completed in " + writeDuration + "ms");
 
+            // Verify the write by re-reading the file back
+            LOGGER.fine("Verifying write by re-reading save game...");
+            try (ProDOSDiskImage verifier = new ProDOSDiskImage(gameFile)) {
+                byte[] verifyData = verifier.readFile("GAME.1.SAVE");
+                if (verifyData == null || verifyData.length != saveGameData.length) {
+                    LOGGER.severe("Write verification failed - file size mismatch: expected " 
+                        + saveGameData.length + ", got " + (verifyData != null ? verifyData.length : "null"));
+                    return false;
+                }
+                LOGGER.fine("Write verified: save game present and size matches");
+            }
+
             // Success - update version info with size and version string
-            String version = GameVersionReader.extractVersion(gameFile);
-            versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+            try {
+                String version = GameVersionReader.extractVersion(gameFile);
+                versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to update version info", e);
+            }
 
             long duration = System.currentTimeMillis() - startTime;
             LOGGER.info("Silent upgrade completed successfully in " + duration + "ms");
@@ -286,6 +312,9 @@ public class UpgradeHandler {
 
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Silent upgrade failed", e);
+            return false;
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Silent upgrade failed with unexpected error", e);
             return false;
         }
     }
@@ -360,11 +389,24 @@ public class UpgradeHandler {
                 // Verify that the save game was actually written
                 boolean verified = verifySaveGamePresent(gameFile);
                 if (!verified) {
-                    LOGGER.warning("Save game verification failed - save may not have been retained");
-                    // Continue anyway - don't restore, just warn
+                    LOGGER.severe("Save game verification failed - save may not have been retained");
+                    // Restore from safety backup - don't trust the file state
+                    if (restoreFromBackup(gameFile, safetyBackup)) {
+                        LOGGER.warning("Restored from safety backup after verification failure");
+                    } else {
+                        LOGGER.severe("Failed to restore from safety backup after verification failure");
+                    }
+                    // Update version info but NOT LKG backup since save wasn't preserved
+                    try {
+                        String version = GameVersionReader.extractVersion(gameFile);
+                        versionTracker.saveVersionInfo(gameFile.lastModified(), gameFile.length(), version);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.WARNING, "Failed to update version info", e);
+                    }
+                    return true; // Continue with new version (no save, backup restored)
                 }
 
-                LOGGER.info("Upgrade completed successfully" + (verified ? " with verified save" : " (verification warning)"));
+                LOGGER.info("Upgrade completed successfully with verified save");
                 // Update last known good backup to new version with save
                 createOrUpdateLastKnownGoodBackup(gameFile);
                 return true;

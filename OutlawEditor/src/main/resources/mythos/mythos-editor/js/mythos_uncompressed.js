@@ -52,7 +52,9 @@ if (typeof Mythos === "undefined") {
 //            Mythos.editor.log("Add local functions");
             Mythos.addFunctionsFromLocalScope();
 //            Mythos.editor.log("Reinitalizing toolbox");
+            if (typeof Mythos.workspace.updateToolbox === 'function') {
             Mythos.workspace.updateToolbox(document.getElementById('toolbox'));
+        }
 //            Mythos.editor.log("Done");
         },
         each: function (list, func) {

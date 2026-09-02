@@ -66,24 +66,42 @@ public class MythosScriptEditorController
             editorView.getEngine().getLoadWorker().stateProperty().addListener(
                     (value, old, newState) -> {
                         if (newState == State.SUCCEEDED) {
+                            javafx.application.Platform.runLater(() -> {
                             try {
+                                long t0 = System.currentTimeMillis();
                                 mythos = (JSObject) editorView.getEngine().executeScript("Mythos");
+                                long t1 = System.currentTimeMillis();
                                 if (mythos == null) {
                                     // The page scripts are not (or no longer) available in the
                                     // JS engine; there is nothing to inject into.
                                     editor.log("Mythos JS object not available when the editor page finished loading; script was not loaded");
                                 } else {
+                                    editor.log("[mythos-init] Mythos object found in " + (t1 - t0) + " ms");
                                     mythos.setMember("editor", editor);
                                     // Wrap in a JS try/catch so an init failure (custom
                                     // definitions, XML import) is logged instead of
                                     // silently leaving an empty workspace.
+                                    editor.log("[mythos-init] executing load script (" + loadScript.length() + " chars)");
+                                    long t2 = System.currentTimeMillis();
                                     editorView.getEngine().executeScript(
                                             "(function(){ try { " + loadScript
                                                     + " } catch(e) { Mythos.editor.log('Mythos load script failed: ' + e); } })()");
+                                    editor.log("[mythos-init] load script returned in " + (System.currentTimeMillis() - t2) + " ms");
                                 }
                             } catch (Exception ex) {
                                 editor.log("Failed to initialize the Mythos editor page: " + ex);
                             } finally {
+                                // Engine liveness probe: after the load script, is the JS VM still
+                                // usable? A hard VM termination ("JavaScript execution terminated")
+                                // makes every subsequent executeScript throw the same error, so a
+                                // failing probe proves the engine is permanently dead (a JavaFX/
+                                // WebKit-level problem) rather than a recoverable import failure.
+                                try {
+                                    Object probe = editorView.getEngine().executeScript("1+1");
+                                    editor.log("[mythos-init] engine liveness probe OK: 1+1=" + probe);
+                                } catch (Exception probeEx) {
+                                    editor.log("[mythos-init] engine liveness probe FAILED (JS VM may be terminated): " + probeEx);
+                                }
                                 // Keep the canvas in sync with the window size even when the
                                 // load script above fails (blank-canvas recovery path).
                                 try {
@@ -91,6 +109,7 @@ public class MythosScriptEditorController
                                 } catch (Exception ignored) {
                                 }
                             }
+                            });
                         }
                     });
 

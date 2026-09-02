@@ -31,12 +31,11 @@ module lawlesslegends {
     requires transitive javafx.controls;
     requires javafx.baseEmpty;
     requires javafx.base;
-    requires javafx.webEmpty;
-    requires javafx.web;
     requires javafx.graphicsEmpty;
     requires javafx.graphics;
     requires javafx.mediaEmpty;
     requires javafx.media;
+    requires org.fxmisc.richtext;
     requires jdk.jsobject;
     requires org.lwjgl.openal;
     requires org.lwjgl.stb;

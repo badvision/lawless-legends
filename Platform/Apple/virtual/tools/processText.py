@@ -48,12 +48,13 @@ def processnode(textfield):
                 sentence = parts[j] + (parts[j+1] if j+1 < len(parts) else '')
                 if not sentence == "":
                     newsent = processsentence(sentence)
-                    # Retain exact spacing from old sentence, since it is hard
-                    # to see in the correction doc.
-                    oldstartsp = re.match(r'^\s*', sentence)[0]
-                    oldendsp   = re.search(r'\s*$', sentence)[0]
-                    newsent = oldstartsp + newsent.strip() + oldendsp
-                    out.append(newsent)
+                    if changing:
+                        # Retain exact spacing from old sentence, since it is hard
+                        # to see in the correction doc.
+                        oldstartsp = re.match(r'^\s*', sentence)[0]
+                        oldendsp   = re.search(r'\s*$', sentence)[0]
+                        newsent = oldstartsp + newsent.strip() + oldendsp
+                        out.append(newsent)
             if changing and sep:
                 out.append(sep)
         if changing:
@@ -84,7 +85,7 @@ def read_hashes(filename):
             if line == '\n':
                 continue
             line = line.replace("\ufeff", "") # Get rid of byte order mark from Word
-            m = re.match(r'^(?P<hashcode>[A-Z0-9]{10}) {8}(?P<sentence>.*)\n$', line)
+            m = re.match(r'^(?P<hashcode>[A-Z0-9]{10})\t(?P<sentence>.*)\n$', line)
             assert m, f"Can't parse {line!r}"
             d = m.groupdict()
             if m['sentence'] != "<dupe>":

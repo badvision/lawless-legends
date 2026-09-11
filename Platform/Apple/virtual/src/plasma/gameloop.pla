@@ -2195,7 +2195,7 @@ export def textureControl(flg)#0
         if !mapIs3D
           pCurMap = NULL // tile engine frees all maps, even current one
         fin
-        if pModUtil3d and mapIs3D and !inScript   // e.g. strafe -> script -> combat: need strafe to stay in mem!
+        if pModUtil3d
           mmgr(FREE_MEMORY, pModUtil3d)
           pModUtil3d = NULL
           util3d = NULL
@@ -2493,6 +2493,7 @@ export def setMap(is3D, num, x, y, dir)#0
     mapNum = num
     initMap(x, y, dir)
     saveGame
+    doRender  // this fixes the clock
   fin
   // Don't send enter event, because we often land on an "Exit to wilderness?" script
   //NO:scriptEvent(S_ENTER, NULL)
@@ -3213,6 +3214,60 @@ def switchMoveMode()#1
 end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate helper (3D mode)
+def rotateInternal(adj)#1
+  byte dir
+  dir = (getDir() + adj) & 15
+  setDir(dir)
+  needRender = TRUE
+  util3d=>util3d_showCompassDir(dir)
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate to the left (3D mode)
+def rotateLeft()#1
+  return rotateInternal(-global->b_moveMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Rotate to the right (3D mode)
+def rotateRight()#1
+  return rotateInternal(global->b_moveMode)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep helper (3D mode)
+def strafeInternal(adj)#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + adj) & 15
+  return moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the right (3D mode)
+def strafeRight()#1
+  return strafeInternal(4)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sidestep to the left (3D mode)
+def strafeLeft()#1
+  return strafeInternal(-4)
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Move backward one step (3D mode). Also actually works in 2D mode.
+def moveBackward()#1
+  byte facingDir, moveDir
+  facingDir = getDir()
+  moveDir = (facingDir + 8) & 15
+  moveInternal(facingDir, moveDir, TRUE, TRUE) // beep ok, adv time
+  return 0
+end
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Set up the command table, with differences for 2D vs 3D mode
 def initCmds()#0
 
@@ -3254,23 +3309,23 @@ def initCmds()#0
     cmdTbl[3]   = @switchMoveMode // ctrl-C
 
     cmdTbl['W'] = @moveForward
-    cmdTbl['A'] = util3d=>util3d_rotateLeft
-    cmdTbl['D'] = util3d=>util3d_rotateRight
-    cmdTbl['S'] = util3d=>util3d_moveBackward
-    cmdTbl['Z'] = util3d=>util3d_strafeLeft
-    cmdTbl['C'] = util3d=>util3d_strafeRight
+    cmdTbl['A'] = @rotateLeft
+    cmdTbl['D'] = @rotateRight
+    cmdTbl['S'] = @moveBackward
+    cmdTbl['Z'] = @strafeLeft
+    cmdTbl['C'] = @strafeRight
 
     cmdTbl['I'] = @moveForward
-    cmdTbl['J'] = util3d=>util3d_rotateLeft
-    cmdTbl['L'] = util3d=>util3d_rotateRight
-    cmdTbl['K'] = util3d=>util3d_moveBackward
-    cmdTbl['H'] = util3d=>util3d_strafeLeft
-    cmdTbl[';'] = util3d=>util3d_strafeRight
+    cmdTbl['J'] = @rotateLeft
+    cmdTbl['L'] = @rotateRight
+    cmdTbl['K'] = @moveBackward
+    cmdTbl['H'] = @strafeLeft
+    cmdTbl[';'] = @strafeRight
 
     cmdTbl[11] = @moveForward  // up-arrow
-    cmdTbl[8]  = util3d=>util3d_rotateLeft   // left-arrow
-    cmdTbl[21] = util3d=>util3d_rotateRight  // right-arrow
-    cmdTbl[10] = util3d=>util3d_moveBackward // down-arrow
+    cmdTbl[8]  = @rotateLeft   // left-arrow
+    cmdTbl[21] = @rotateRight  // right-arrow
+    cmdTbl[10] = @moveBackward // down-arrow
   else
     cmdTbl['W'] = @moveNorth
     cmdTbl['D'] = @moveEast

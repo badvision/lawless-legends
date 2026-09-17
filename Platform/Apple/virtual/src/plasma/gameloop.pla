@@ -1310,10 +1310,10 @@ export def rand16()#1
   word result
   if recordMode
     *seed = recordSeed
-    //printf1("%x:", recordSeed)
+    //printf1("rand16: prev=$%x:", recordSeed)
     result = internal_rand16()
     recordSeed = *seed
-    //printf1("%x ", recordSeed)
+    //printf1(" next=$%x\n", recordSeed)
     return result
   fin
   return internal_rand16()
@@ -2329,7 +2329,9 @@ def snooze()#1
     fin
   fin
 
-  nextAnimFrame()
+  if !recordMode
+    nextAnimFrame()
+  fin
 
   cursX, cursY = getCursor()
   if cursX == snoozeX1 and cursY == snoozeY

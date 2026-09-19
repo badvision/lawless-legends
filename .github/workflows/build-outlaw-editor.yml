@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '27'
+          java-version: '27-ea'
       - name: Read version from pom.xml
         id: get_version
         working-directory: OutlawEditor
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '27'
+          java-version: '27-ea'
 
       - name: Build
         working-directory: OutlawEditor

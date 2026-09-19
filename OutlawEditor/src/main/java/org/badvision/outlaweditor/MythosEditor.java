@@ -27,8 +27,6 @@ import java.util.stream.Stream;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.badvision.outlaweditor.api.ApplicationState;
 import static org.badvision.outlaweditor.data.DataUtilities.extract;
 import static org.badvision.outlaweditor.data.DataUtilities.extractFirst;
@@ -47,8 +45,6 @@ import org.badvision.outlaweditor.spelling.Suggestion;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
 import org.w3c.dom.Document;
-import org.xml.sax.SAXException;
-
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
@@ -277,7 +273,7 @@ public class MythosEditor {
     }
 
     public List<String> getParametersForScript(Script script) {
-        List<String> allArgs = new ArrayList();
+        List<String> allArgs = new ArrayList<>();
         if (script.getBlock() != null) {
             extractFirst(script.getBlock(), Mutation.class)
                     .ifPresent((m) -> m.getArg().stream().map(Arg::getName).forEach(allArgs::add));

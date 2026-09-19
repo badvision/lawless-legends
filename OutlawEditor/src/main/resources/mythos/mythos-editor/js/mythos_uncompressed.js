@@ -115,7 +115,7 @@ if (typeof Mythos === "undefined") {
                         typeSetter.setNextStatement(true);
                         typeSetter.setOutput(false);
                         typeSetter.setTooltip(userType.getComment());
-                        typeSetter.appendValueInput()
+                        typeSetter.appendValueInput("VALUE")
                                 .setAlign(Blockly.ALIGN_LEFT)
                                 .appendField("Set")
                                 .appendField(new Blockly.FieldVariable(userType.getName()), "VAR")

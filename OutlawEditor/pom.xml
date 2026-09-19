@@ -30,6 +30,9 @@
                     <resourcesList>
                         <resource>.*</resource>
                     </resourcesList>
+                    <linkerArgs>
+                        <linkerArg>-l:libsvm_container.a</linkerArg>
+                    </linkerArgs>
                     <releaseConfiguration>
                         <vendor>The 8-Bit Bunch</vendor>
                         <skipSigning>true</skipSigning>

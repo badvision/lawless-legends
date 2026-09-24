@@ -10,6 +10,7 @@
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -495,11 +496,20 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
         if (getCurrentMap() == null) {
             mapScriptsList.getItems().clear();
         } else if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
-            DataUtilities.sortNamedEntities(getCurrentMap().getScripts().getScript());
-            mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
+            populateScripts(mapScriptsList, getCurrentMap().getScripts().getScript());
         } else {
             mapScriptsList.getItems().clear();
         }
+    }
+
+    // Shared population path for the map script list, used by
+    // redrawMapScripts() and its tests.
+    static void populateScripts(ListView<Script> list, List<Script> scripts) {
+        DataUtilities.sortNamedEntities(scripts);
+        list.getItems().setAll(scripts);
+        // In-place name changes keep the same Script instances; explicitly repaint
+        // visible cells even on JavaFX versions that skip equal-content setAll updates.
+        list.refresh();
     }
 
     private ContextMenu generateContextMenu(Script script) {

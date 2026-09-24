@@ -32,6 +32,7 @@ import static org.badvision.outlaweditor.data.DataUtilities.extract;
 import static org.badvision.outlaweditor.data.DataUtilities.extractFirst;
 import org.badvision.outlaweditor.data.xml.Arg;
 import org.badvision.outlaweditor.data.xml.Block;
+import org.badvision.outlaweditor.data.xml.Field;
 import org.badvision.outlaweditor.data.xml.Global;
 import org.badvision.outlaweditor.data.xml.Mutation;
 import org.badvision.outlaweditor.data.xml.Scope;
@@ -44,11 +45,13 @@ import org.badvision.outlaweditor.spelling.SpellResponse;
 import org.badvision.outlaweditor.spelling.Suggestion;
 import org.badvision.outlaweditor.ui.ApplicationUIController;
 import org.badvision.outlaweditor.ui.MythosScriptEditorController;
+import org.badvision.outlaweditor.ui.UIAction;
 import org.w3c.dom.Document;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Unmarshaller;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
@@ -62,8 +65,11 @@ import javafx.stage.WindowEvent;
  */
 public class MythosEditor {
 
-    // Static map to track which scripts are currently being edited (prevents duplicate windows)
-    private static final Map<Script, MythosEditor> activeEditors = new HashMap<>();
+    // Registry of open MythosEditor windows keyed by script. Backs the
+    // duplicate-window guard in show() and the close bookkeeping.
+    // Instance-based and package-private so the open/close contract is
+    // unit-testable without a real Stage.
+    static final EditorRegistry registry = new EditorRegistry();
 
     // Static clipboard shared across all editor windows so that copy/paste works
     // between separate WebView instances (each has its own JS heap).
@@ -76,7 +82,8 @@ public class MythosEditor {
     MythosScriptEditorController controller;
     public static final String XML_HEADER = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
     SpellChecker spellChecker;
-    private boolean isShowing = false;
+    // Package-private so tests can observe/simulate the window state.
+    boolean isShowing = false;
 
     public MythosEditor(Script theScript, Scope theScope) {
         script = theScript;
@@ -86,18 +93,16 @@ public class MythosEditor {
     }
 
     public void show() {
-        // Guard against duplicate window creation (bug fix)
-        // Check if this script is already being edited
-        synchronized (activeEditors) {
-            MythosEditor existingEditor = activeEditors.get(script);
-            if (existingEditor != null && existingEditor.isShowing) {
-                if (existingEditor.primaryStage != null) {
-                    existingEditor.primaryStage.toFront();
-                }
-                return;
+        // Guard against duplicate window creation: only an editor that is
+        // actually still showing for this script wins; a stale or
+        // registered-but-not-showing entry is replaced so a reopen after
+        // close always proceeds.
+        MythosEditor existingEditor = registry.acquire(script, this);
+        if (existingEditor != null) {
+            if (existingEditor.primaryStage != null) {
+                existingEditor.primaryStage.toFront();
             }
-            // Register this editor for this script
-            activeEditors.put(script, this);
+            return;
         }
 
         if (isShowing) {
@@ -117,10 +122,7 @@ public class MythosEditor {
             Scene s = new Scene(node);
             primaryStage.setScene(s);
         } catch (IOException exception) {
-            isShowing = false;
-            synchronized (activeEditors) {
-                activeEditors.remove(script);
-            }
+            releaseNow();
             throw new RuntimeException(exception);
         }
 
@@ -131,14 +133,19 @@ public class MythosEditor {
     }
 
     public void close() {
+        releaseNow();
         javafx.application.Platform.runLater(() -> {
             primaryStage.getScene().getRoot().setDisable(true);
-            primaryStage.close();
-            isShowing = false;
-            synchronized (activeEditors) {
-                activeEditors.remove(script);
-            }
+            // close() dispatches the consumed CLOSE_REQUEST, so hide the stage directly.
+            primaryStage.hide();
         });
+    }
+
+    // Close bookkeeping: the editor no longer counts as showing and the
+    // script may be reopened immediately.
+    void releaseNow() {
+        isShowing = false;
+        registry.release(script);
     }
 
     public void applyChanges() {
@@ -158,6 +165,15 @@ public class MythosEditor {
             Document doc = db.parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
             JAXBElement<Block> b = unmarshaller.unmarshal(doc, Block.class);
             script.setBlock(b.getValue());
+            extract(script.getBlock(), Field.class)
+                    .filter(field -> "NAME".equalsIgnoreCase(field.getName()))
+                    .findFirst()
+                    .ifPresent(field -> {
+                        String name = field.getValue();
+                        if (name != null && !name.isBlank()) {
+                            setFunctionName(name);
+                        }
+                    });
         } catch (Exception ex) {
             // Catch Exception (not just checked exceptions) so that JSException or any
             // other RuntimeException from the JS bridge does not prevent close() from running.
@@ -320,6 +336,13 @@ public class MythosEditor {
         return sharedBlockClipboard;
     }
 
+    public void alertWarning(String message) {
+        if (message == null) {
+            return;
+        }
+        Platform.runLater(() -> UIAction.alert(message));
+    }
+
     public void log(String message) {
         Logger.getLogger(getClass().getName()).warning(message);
         System.out.println(message);
@@ -365,4 +388,36 @@ public class MythosEditor {
         }
     }
 
+    /**
+     * Open-editor registry. One entry per script; a duplicate open of a
+     * script that is actually still showing bounces to the existing window,
+     * while a registered-but-not-showing entry (mid-close or stale) is
+     * replaced by the new editor.
+     */
+    static final class EditorRegistry {
+
+        private final Map<Script, MythosEditor> editors = new HashMap<>();
+
+        /**
+         * @return the editor that already owns this script when it is actually
+         *         showing (a true duplicate open), or null after registering
+         *         {@code editor}.
+         */
+        synchronized MythosEditor acquire(Script script, MythosEditor editor) {
+            MythosEditor existing = editors.get(script);
+            if (existing != null && existing.isShowing) {
+                return existing;
+            }
+            editors.put(script, editor);
+            return null;
+        }
+
+        synchronized void release(Script script) {
+            editors.remove(script);
+        }
+
+        synchronized boolean isRegistered(Script script) {
+            return editors.containsKey(script);
+        }
+    }
 }

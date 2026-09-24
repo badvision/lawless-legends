@@ -10,20 +10,200 @@
  
 /* global Blockly */
 
+/*
+ * Pure, dependency-free units shared by the page (editor.html) and the Node
+ * tests (mythos_uncompressed.test.js).  They must not reference Blockly or the
+ * DOM; everything they need is injected or sampled by the caller.
+ */
+(function (root) {
+    'use strict';
+
+    /*
+     * MythosConvergence -- decision logic for the PERSISTENT workspace-geometry
+     * convergence (the "blank canvas / misplaced trashcan on Windows" fix).
+     *
+     * The workspace is (re-)synced to the container size whenever the sampled
+     * size differs from the last synced size, for the page's lifetime.  The old
+     * behaviour -- an rAF loop that gave up after 150 ticks -- could miss a
+     * container size arriving late: the page parses before the JavaFX window
+     * has a size (0x0), and on Windows the window can take several seconds to
+     * gain its real size with no reliable window 'resize' event or rAF
+     * callbacks following.  decide() therefore never signals "stop"
+     * (keepAlive is always true).
+     *
+     * Usage (see editor.html):
+     *   var c = MythosConvergence.create();
+     *   ...on each poll (window resize / 500ms interval / rAF tick / post-import):
+     *   var s = sampleContainerSize();          // one layout read
+     *   var d = c.decide(s.w, s.h);
+     *   if (d.resize) { applySize(s); c.reportSynced(s.w, s.h, ok); }
+     */
+    var MythosConvergence = {
+        // Pure decision: no timer, DOM, Blockly, or mutation.  In particular,
+        // there is no retry limit for an arbitrarily late 0x0 -> real size.
+        decide: function (lastW, lastH, w, h) {
+            var changed = w !== lastW || h !== lastH;
+            return {
+                resize: changed,
+                converged: w > 0 && h > 0,
+                keepAlive: true
+            };
+        },
+        create: function () {
+            return {
+                lastW: 0,          // width (px) the workspace was last synced to
+                lastH: 0,          // height (px) the workspace was last synced to
+                converged: false,  // true once synced to a size > 0
+                decide: function (w, h) {
+                    return MythosConvergence.decide(this.lastW, this.lastH, w, h);
+                },
+                // Record the outcome of the apply step.  ok=false keeps the
+                // previous synced size so the next tick retries.
+                reportSynced: function (w, h, ok) {
+                    if (!ok) return;
+                    this.lastW = w;
+                    this.lastH = h;
+                    this.converged = w > 0 && h > 0;
+                }
+            };
+        }
+    };
+
+    /*
+     * MythosRename -- live def-block rename hook.
+     *
+     * In Blockly v12.5.1, committing a new NAME on a procedures_defreturn /
+     * procedures_defnoreturn block is handled entirely inside the field
+     * *validator* (core procedures.rename): it sanitizes the name, updates the
+     * procedure model, propagates to all caller blocks and returns the final
+     * name.  The def block's init() stores that ORIGINAL function by direct
+     * reference (setValidator) at field-creation time, and the commit path
+     * (Field.setValue -> getValidator().call(this, ...)) invokes the instance
+     * reference -- so the monkey-patched Blockly.Procedures.rename property
+     * (installed below) is never consulted.  The authoritative live
+     * notification is the BLOCK_CHANGE event: element='field', name='NAME' on
+     * the def block (fired by Field.widgetDispose_/setValue on commit).
+     *
+     * NOTE: caller blocks (procedures_callreturn / callnoreturn) ALSO have a
+     * NAME field, and additional top-level definitions may be created after
+     * import.  Only the surviving imported root identifies this script.
+     */
+    var MythosRename = {
+        // True iff this is a NAME commit on the imported root definition.
+        // The root id and block lookup are injected; an unset/deleted root
+        // fails closed without consulting Blockly globals.
+        isDefNameChange: function (event, getBlockById, rootBlockId) {
+            if (!rootBlockId || !event || event.blockId !== rootBlockId ||
+                    event.element !== 'field' || event.name !== 'NAME') return false;
+            var block = getBlockById ? getBlockById(event.blockId) : null;
+            if (!block || block.id !== rootBlockId) return false;
+            var isDef = block.type === 'procedures_defreturn' ||
+                        block.type === 'procedures_defnoreturn';
+            if (!isDef) return false;
+            // Def blocks are structurally always top-level; double-check when
+            // the block object exposes isTopBlock().
+            if (typeof block.isTopBlock === 'function' && !block.isTopBlock()) return false;
+            return true;
+        },
+        // The workspace change listener registered in editor.html.  getMythos()
+        // returns { workspace, editor, rootBlockId }; injecting it and the
+        // BLOCK_CHANGE value keeps this unit free of Blockly globals.
+        makeRenameListener: function (getMythos, blockChangeType) {
+            return function (event) {
+                if (!event || event.type !== blockChangeType) return;
+                var m = getMythos();
+                if (!m || !MythosRename.isDefNameChange(event, function (id) {
+                    return (m.workspace && typeof m.workspace.getBlockById === 'function') ?
+                        m.workspace.getBlockById(id) : null;
+                }, m.rootBlockId)) return;
+                if (m.editor && typeof m.editor.setFunctionName === 'function') {
+                    m.editor.setFunctionName(event.newValue);
+                }
+            };
+        }
+    };
+
+    // Filter only the DOM Blockly already serialized.  Never mutate the input
+    // or ask Blockly to reserialize a block: normal single-root output uses
+    // the original element and its innerHTML verbatim.
+    var MythosSerialize = {
+        buildScriptXml: function (workspaceXml, rootBlockId) {
+            var variables = null;
+            var rootBlock = null;
+            var topBlockCount = 0;
+            for (var i = 0; i < workspaceXml.childNodes.length; i++) {
+                var child = workspaceXml.childNodes[i];
+                if (child.nodeType !== 1) continue;
+                var tag = child.nodeName.toLowerCase();
+                if (tag === 'variables' && !variables) variables = child;
+                if (tag === 'block') {
+                    topBlockCount++;
+                    if (rootBlockId && child.getAttribute('id') === rootBlockId) rootBlock = child;
+                }
+            }
+            var rootFound = !!rootBlock;
+            // An unimported workspace with zero/one block retains legacy
+            // output.  A *known* root that is missing must never be replaced
+            // by a remaining non-root block, even when it is the only one.
+            var legacy = topBlockCount <= 1 && (!rootBlockId || rootFound);
+            if (legacy) {
+                return { element: workspaceXml, report: {
+                    extraCount: 0, topBlockCount: topBlockCount,
+                    rootFound: rootFound, legacy: true, warning: false
+                } };
+            }
+            var filtered = workspaceXml.cloneNode(false);
+            if (variables) filtered.appendChild(variables.cloneNode(true));
+            if (rootBlock) filtered.appendChild(rootBlock.cloneNode(true));
+            return { element: filtered, report: {
+                extraCount: topBlockCount - (rootFound ? 1 : 0),
+                topBlockCount: topBlockCount, rootFound: rootFound,
+                legacy: false, warning: true
+            } };
+        }
+    };
+
+    root.MythosConvergence = MythosConvergence;
+    root.MythosRename = MythosRename;
+    root.MythosSerialize = MythosSerialize;
+})(typeof window !== "undefined" ? window :
+   (typeof globalThis !== "undefined" ? globalThis : this));
+
 if (typeof Mythos === "undefined") {
-// Hook up the rename function to notify the java editor when changes occur
+// Hook up the rename function to notify the java editor when changes occur.
+//
+// v12.5.1 finding (verified against blockly_compressed.js / blocks_compressed.js):
+// this patch is INSTALLED (Blockly.Procedures.rename is the core rename
+// function) but can never FIRE.  The def block's init() stores the ORIGINAL
+// validator by direct reference at field-creation time
+//   (a.setValidator($.rename$$module$build$src$core$procedures))
+// and the field commit path invokes the instance reference
+//   (setValue: e=(d=this.getValidator())==null?void 0:d.call(this,l))
+// -- the reassigned namespace property is never consulted.  No other code
+// calls Blockly.Procedures.rename through the namespace either (zero call
+// sites in the minified core).  The authoritative live path is the
+// BLOCK_CHANGE listener registered in editor.html
+// (MythosRename.makeRenameListener); the two are idempotent.  Both paths
+// must restrict notifications to the imported root block.
     if (typeof window === "undefined") {
         window = {};
     }
     if (Blockly.Procedures && Blockly.Procedures.rename) {
         Blockly.Procedures.rename_old = Blockly.Procedures.rename;
         Blockly.Procedures.rename = function (name) {
-            Mythos.editor.setFunctionName(name);
+            var block = this && typeof this.getSourceBlock === 'function' ?
+                this.getSourceBlock() : null;
+            if (block && Mythos.rootBlockId && block.id === Mythos.rootBlockId &&
+                    Mythos.editor && typeof Mythos.editor.setFunctionName === 'function') {
+                Mythos.editor.setFunctionName(name);
+            }
             return Blockly.Procedures.rename_old.call(this, name);
         };
     }
     Mythos = {
         setScriptXml: function (xml) {
+            // Clear before import events can fire; no old root may rename a new script.
+            Mythos.rootBlockId = null;
             var ws = Mythos.workspace;
             ws.clear();
             var dom = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
@@ -37,9 +217,50 @@ if (typeof Mythos === "undefined") {
                 topBlocks[topBlocks.length - 1].dispose();
                 topBlocks = ws.getTopBlocks(false);
             }
+            // Only the surviving first top block represents the script's identity.
+            topBlocks = ws.getTopBlocks(false);
+            Mythos.rootBlockId = topBlocks.length ? topBlocks[0].id : null;
+            // (c) One-shot sync after import: importing 300+ blocks is slow and
+            // the container may have just gained its real size (page parsed at
+            // 0x0).  Re-run the persistent size-convergence pass now instead of
+            // waiting for the next 500ms poll (editor.html defines the hook).
+            if (typeof window !== "undefined" &&
+                    typeof window.mythosSyncWorkspaceSize === "function") {
+                window.mythosSyncWorkspaceSize();
+            }
         },
         getScriptXml: function () {
-            return Blockly.Xml.workspaceToDom(Mythos.workspace).innerHTML;
+            var serialized = MythosSerialize.buildScriptXml(
+                Blockly.Xml.workspaceToDom(Mythos.workspace), Mythos.rootBlockId);
+            if (serialized.report.legacy) return serialized.element.innerHTML;
+
+            var report = serialized.report;
+            var message;
+            if (report.rootFound) {
+                var rootBlock = Mythos.workspace.getBlockById(Mythos.rootBlockId);
+                var name = rootBlock && typeof rootBlock.getFieldValue === 'function' ?
+                    rootBlock.getFieldValue('NAME') : null;
+                message = 'Script "' + (name || 'unnamed') + '" contains ' +
+                    report.topBlockCount + ' top-level blocks; only the root block was saved. ' +
+                    report.extraCount + ' extra top-level block(s) were ignored.';
+            } else {
+                message = 'Script root block is missing; no changes were saved. ' +
+                    report.extraCount + ' top-level block(s) were ignored.';
+            }
+            var editor = Mythos.editor;
+            if (editor) {
+                var warned = false;
+                try {
+                    if (typeof editor.alertWarning === 'function') {
+                        editor.alertWarning(message);
+                        warned = true;
+                    }
+                } catch (e) {}
+                if (!warned) {
+                    try { if (typeof editor.log === 'function') editor.log(message); } catch (e) {}
+                }
+            }
+            return serialized.element.innerHTML;
         },
         helpUrl: 'https://docs.google.com/document/d/1VXbiY4G533-cokjQevZFhwvqMMCL--17ziMAoFoeJ5M/edit#heading=h.yv9dmneqjr2b',
         initCustomDefinitions: function () {

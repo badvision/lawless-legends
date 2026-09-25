@@ -467,9 +467,6 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void redrawMapScripts() {
-        mapScriptsList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), getCurrentMap());
-        });
         mapScriptsList.setCellFactory((ListView<Script> param) -> new ListCell<Script>() {
             @Override
             protected void updateItem(Script item, boolean empty) {
@@ -491,6 +488,16 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                     visibleIcon.setMouseTransparent(false);
                     setContextMenu(generateContextMenu(item));
                 }
+            }
+
+            // Double-click opens the script editor; there is no inline rename here.
+            // Never enter the editable-cell state, and clear the list's editing index,
+            // so a later double-click on this row (e.g. right after an aborted session)
+            // opens the editor again instead of being swallowed by the stale edit.
+            @Override
+            public void startEdit() {
+                UIAction.editScript(getItem(), getCurrentMap());
+                getListView().edit(-1);
             }
         });
         if (getCurrentMap() == null) {

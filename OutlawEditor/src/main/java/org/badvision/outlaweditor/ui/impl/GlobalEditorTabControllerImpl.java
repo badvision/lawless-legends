@@ -76,10 +76,13 @@ public class GlobalEditorTabControllerImpl extends GlobalEditorTabController {
 
             @Override
             public void startEdit() {
+                // Double-click opens the script editor; there is no inline rename here.
+                // Clear the list's editing index so a later double-click on this row
+                // (e.g. right after an aborted session) opens the editor again instead
+                // of being swallowed by the stale edit.
                 Platform.runLater(()->globalScriptList.getSelectionModel().clearSelection());
                 UIAction.editScript(getItem(), ApplicationState.getInstance().getGameData().getGlobal());
-                cancelEdit();
-                updateItem(getItem(), false);
+                globalScriptList.edit(-1);
             }
         });
         dataTypeList.setCellFactory((listView) -> new ListCell<UserType>() {

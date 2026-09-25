@@ -416,6 +416,11 @@ public class MythosEditor {
             editors.remove(script);
         }
 
+        /** Test seam: the editor currently registered for this script, if any. */
+        synchronized MythosEditor get(Script script) {
+            return editors.get(script);
+        }
+
         synchronized boolean isRegistered(Script script) {
             return editors.containsKey(script);
         }

@@ -68,6 +68,12 @@ class A2PackPartitions
     static final int MAX_DISKS = 8 // if more are needed, we'd have to expand the resource index format
     static final int CHUNK_HEADER_SIZE = 3
 
+    // NOTE: we used to pack up to 64 distinct tiles per tileset. This resulted in tilesets about 
+    // occupying 3k - 3.5k of main RAM. However, with 4 maps in memory and 5 tilesets (i.e. including 
+    // the global tileset), pressure on the memory system was high. Reducing the max tileset size has 
+    // eased this pressure, but results in a bit more frequent disk access. Better than crashing!
+    static final int MAX_TILESET_COUNT = 56
+
     def typeNumToDisplayName = [1:  "Code",
                                 2:  "2D map",
                                 3:  "3D map",
@@ -1205,7 +1211,8 @@ class A2PackPartitions
                 // See if the set we're considering has room for all our tiles
                 def inCommon = it.tileIds.intersect(tileIds)
                 def together = it.tileIds + tileIds
-                if (together.size() < 64 && inCommon.size() > bestCommon) {
+                // See note about MAX_TILESET_COUNT and memory pressure
+                if (together.size() < MAX_TILESET_COUNT && inCommon.size() > bestCommon) {
                     tileSet = it
                     bestCommon = inCommon.size()
                 }

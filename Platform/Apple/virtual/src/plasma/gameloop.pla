@@ -2101,7 +2101,7 @@ def initMap(x, y, dir)#0
   pGlobalTileset = mmgr(QUEUE_LOAD, 1<<8 | RES_TYPE_TILESET)  // even in 3d, need tiles for lamp/etc.
   //AUTOMAP_CHECK// pDiskOps = mmgr(QUEUE_LOAD, MOD_DISKOPS<<8 | RES_TYPE_MODULE)
   mmgr(FINISH_LOAD, 0)
-  if mapIs3D; loadUtil3d(); fin
+  loadUtil3d() // checks for 3d mode and loads util3d if so
 
   //AUTOMAP_CHECK// pDiskOps()=>diskops_checkAutomap()
   //AUTOMAP_CHECK// mmgr(FREE_MEMORY, pDiskOps)
@@ -2188,7 +2188,7 @@ export def textureControl(flg)#0
     if flg <> texturesLoaded
       if flg
         _texControl(1)
-        if mapIs3D; loadUtil3d; fin
+        loadUtil3d() // checks for 3d mode and loads util3d if so
         showingLamp = mapIs3D and (skyNum == 0 or skyNum == 8)
       else
         _texControl(0)
@@ -3222,6 +3222,7 @@ def rotateInternal(adj)#1
   dir = (getDir() + adj) & 15
   setDir(dir)
   needRender = TRUE
+  loadUtil3d // defensively make sure it's loaded - texControl(0) can unload it
   util3d=>util3d_showCompassDir(dir)
   return 0
 end
@@ -3414,8 +3415,10 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 export def createStruct(moduleID, creationFuncNum)#1
   word p_module, funcTbl, func, p_thing
+  byte old_texl
 
   // Unload textures to make room for the module (also flips to page 1 if needed)
+  old_texl = texturesLoaded
   textureControl(FALSE)
 
   // Load the module that is capable of creating the thing
@@ -3430,6 +3433,12 @@ export def createStruct(moduleID, creationFuncNum)#1
 
   // Finished with the module now.
   mmgr(FREE_MEMORY, p_module)
+
+  // Reload textures if they started that way (also reloads util3d)
+  if old_texl
+    textureControl(TRUE)
+  fin
+
   return p_thing
 end
 

@@ -825,6 +825,24 @@
             }
         });
 
+        // Live rename hook (v12): when the user commits a new NAME on the
+        // top-level procedures_defreturn/defnoreturn block, notify Java
+        // immediately so the map editor's script list updates as the user
+        // renames -- without waiting for a save (applyChanges).
+        //
+        // This is the AUTHORITATIVE live path in v12.5.1: the def block's NAME
+        // field captures the original validator by direct reference at
+        // field-creation time (setValidator), so the monkey-patched
+        // Blockly.Procedures.rename in mythos_uncompressed.js never fires.
+        // The decision logic (MythosRename) lives in mythos_uncompressed.js and
+        // is covered by js/mythos_uncompressed.test.js; it matches the DEF
+        // block's type only, so NAME changes on caller blocks
+        // (procedures_callreturn/callnoreturn also have a NAME field and are
+        // rewritten during a rename) are ignored.  Idempotent with the legacy
+        // hook: Java's setter overwrites with the same name.
+        Mythos.workspace.addChangeListener(
+            MythosRename.makeRenameListener(function () { return Mythos; }, Blockly.Events.BLOCK_CHANGE));
+
         // Cross-window clipboard bridge (JavaFX WebView has isolated JS contexts per window).
         // Blockly v12 stores copy/paste state in module-level JS variables, so a block
         // copied in Window A is invisible to Window B.  We fix this by:
@@ -1113,7 +1131,60 @@
             };
         })();
 
-        var onresize = function (e) {
+        // ---- Persistent workspace-geometry convergence ------------------------
+        // Fixes (Windows): "trash can in the blockly editor doesn't work 100%
+        // correctly" / blank canvas.  If the page parses before the JavaFX
+        // window has a size, the container is 0x0 at inject time; Blockly's SVG
+        // stays 0x0 and the trashcan (positioned from the SVG client size via
+        // WorkspaceSvg.resize() -> trashcan.position(uiMetrics)) is misplaced.
+        //
+        // Why the old fix was not enough: Blockly's own window-resize handler
+        // reads a stale container size (registered before this one, syncs the
+        // PREVIOUS change), and WebKit may not deliver a 0-to-real-size resize
+        // event on all platforms.  The previous workaround converged via an rAF
+        // loop that GAVE UP after 150 ticks (~2.5s).  On Windows the window can
+        // gain its real size later than that (and rAF callbacks may not be
+        // scheduled at all on a static page in some WebKit builds), so the
+        // canvas stayed 0x0.
+        //
+        // New behaviour: convergence is PERSISTENT for the page's lifetime.
+        // The decision logic is the pure unit MythosConvergence
+        // (mythos_uncompressed.js, covered by js/mythos_uncompressed.test.js):
+        // sample the container size; periodic polls (re-)sync blocklyDiv +
+        // Blockly.svgResize only on change.  Window resize still forces the
+        // position update even if dimensions stayed equal.  Drivers:
+        //   (a) window 'resize'  -> syncPass(true)            [1 layout read]
+        //   (b) 500ms setInterval -> syncPass()  [the safety net: works even
+        //       when no resize event fires AND rAF is not being scheduled]
+        //   (c) after setScriptXml -> window.mythosSyncWorkspaceSize()
+        //       [importing 300+ blocks is slow; the container may have just
+        //       gained its real size]
+        //   (d) rAF loop, never stops: every frame while the size is still
+        //       pending (fast convergence), then every 32nd frame once
+        //       converged (catches later resizes; no per-frame layout reads)
+        // Cost: at most one offsetWidth/offsetHeight read per poll and per
+        // resize event; periodic polling writes styles (and re-renders Blockly)
+        // only on size changes.  The event-driven forced sync is infrequent,
+        // and steady state has no per-frame layout thrashing.
+        var convergence = MythosConvergence.create();
+        var diagWarned = false;
+        var pageLoadTime = Date.now();
+
+        function sampleSize() {
+            return { w: blocklyArea.offsetWidth, h: blocklyArea.offsetHeight };
+        }
+
+        function logMythos(msg) {
+            if (Mythos.editor && typeof Mythos.editor.log === 'function') {
+                try { Mythos.editor.log(msg); return true; } catch (e) {}
+            }
+            return false;
+        }
+
+        // Apply (w,h) to blocklyDiv and Blockly.  preSampled holds the sampled
+        // size so the poll paths do not force a second layout read.  Returns
+        // true when the sync was applied (or there was nothing to apply).
+        var onresize = function (preSampled) {
             // Compute the absolute coordinates and dimensions of blocklyArea.
             var element = blocklyArea;
             var x = 0;
@@ -1126,39 +1197,67 @@
             // Position blocklyDiv over blocklyArea.
             blocklyDiv.style.left = x + 'px';
             blocklyDiv.style.top = y + 'px';
-            blocklyDiv.style.width = blocklyArea.offsetWidth + 'px';
-            blocklyDiv.style.height = blocklyArea.offsetHeight + 'px';
-            // BUGFIX (blank canvas / missing trashcan): Blockly's own window-resize
-            // handler is registered before this listener, so on every resize event it
-            // reads the container size from the PREVIOUS event and never syncs the
-            // current change.  When the page parses before the JavaFX window has a
-            // size (viewport 0x0 at inject time) the workspace SVG ends up 0x0 and
-            // no later event repairs it -- the toolbox (a content-sized HTML div)
-            // stays visible while the canvas and trashcan vanish.  Sync explicitly,
-            // after the style change, so the SVG converges on every event.
+            blocklyDiv.style.width = preSampled.w + 'px';
+            blocklyDiv.style.height = preSampled.h + 'px';
+            // Sync Blockly AFTER the style change.  Blockly.svgResize() reads
+            // blocklyDiv's offset size, sets the SVG width/height, and calls
+            // workspace.resize(), which repositions the trashcan, scrollbars
+            // and zoom controls from the new UI metrics.
             if (Mythos.workspace && Blockly.svgResize) {
-                try { Blockly.svgResize(Mythos.workspace); } catch (e) {}
+                try { Blockly.svgResize(Mythos.workspace); return true; }
+                catch (e) { return false; }
             }
+            return true;
         };
-        window.addEventListener('resize', onresize, false);
-        onresize();
 
-        // BUGFIX (blank canvas, part 2): if the page parsed before the JavaFX
-        // window was laid out (viewport 0x0 at inject time), no resize event is
-        // guaranteed to follow -- WebKit may not deliver a 0-to-real-size event on
-        // all platforms.  Converge via requestAnimationFrame until the area has a
-        // real size.  onresize() (above) syncs Blockly after each update.
+        // One persistent convergence pass: sample (1 layout read), decide,
+        // apply only on change for polls.  force=true preserves the existing
+        // window handler's position update even when dimensions are unchanged.
+        function syncPass(force) {
+            var s = sampleSize();
+            var d = convergence.decide(s.w, s.h);
+            if (d.resize || force === true) {
+                var ok = onresize(s);
+                convergence.reportSynced(s.w, s.h, ok);
+            }
+            // ONE diagnostic (no spam): if the container still has no usable
+            // size ~5s after load, log container + SVG sizes for the reporter.
+            if (!d.converged && !diagWarned && (Date.now() - pageLoadTime) >= 5000) {
+                var svg = (Mythos.workspace && Mythos.workspace.getParentSvg) ?
+                    Mythos.workspace.getParentSvg() : null;
+                diagWarned = logMythos('[Mythos] WARNING: workspace container is ' + s.w + 'x' + s.h +
+                    ' ' + Math.round((Date.now() - pageLoadTime) / 1000) + 's after load; ' +
+                    'the canvas and trashcan may be misplaced. SVG size: ' +
+                    (svg ? svg.clientWidth + 'x' + svg.clientHeight : 'n/a') + '.');
+            }
+        }
+
+        window.mythosSyncWorkspaceSize = syncPass;  // (c) called at the end of setScriptXml
+
+        // (a) window resize -- one layout read per event; position may change
+        // even when dimensions do not.
+        window.addEventListener('resize', function () { syncPass(true); }, false);
+        syncPass(true);  // preserve the initial unconditional placement
+
+        // (b) periodic poll -- the primary safety net for late-arriving sizes;
+        // continues for the page's lifetime.
+        setInterval(syncPass, 500);
+
+        // (d) rAF loop -- kept alive and never given up on (the old loop stopped
+        // after 150 ticks).  Every frame while the size is still pending for
+        // fast convergence; once converged it samples at ~2Hz (every 32 frames)
+        // to catch later resizes without a per-frame layout read.
         (function() {
-            if (blocklyArea.offsetWidth > 0 && blocklyArea.offsetHeight > 0) return;
-            var tries = 0;
+            var frame = 0;
             (function tick() {
-                if (blocklyArea.offsetWidth > 0 && blocklyArea.offsetHeight > 0) {
-                    onresize();
-                    return;
+                frame++;
+                if (!convergence.converged || frame % 32 === 0) {
+                    syncPass();
                 }
-                if (++tries < 150) {
-                    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(tick);
-                    else setTimeout(tick, 16);
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(tick);
+                } else {
+                    setTimeout(tick, 16);
                 }
             })();
         })();

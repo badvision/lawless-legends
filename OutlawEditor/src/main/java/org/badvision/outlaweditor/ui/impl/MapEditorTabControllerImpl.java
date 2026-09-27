@@ -10,6 +10,7 @@
 package org.badvision.outlaweditor.ui.impl;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -466,9 +467,6 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
 
     @Override
     public void redrawMapScripts() {
-        mapScriptsList.setOnEditStart((ListView.EditEvent<Script> event) -> {
-            UIAction.editScript(event.getSource().getItems().get(event.getIndex()), getCurrentMap());
-        });
         mapScriptsList.setCellFactory((ListView<Script> param) -> new ListCell<Script>() {
             @Override
             protected void updateItem(Script item, boolean empty) {
@@ -491,15 +489,34 @@ public class MapEditorTabControllerImpl extends MapEditorTabController {
                     setContextMenu(generateContextMenu(item));
                 }
             }
+
+            // Double-click opens the script editor; there is no inline rename here.
+            // Never enter the editable-cell state, and clear the list's editing index,
+            // so a later double-click on this row (e.g. right after an aborted session)
+            // opens the editor again instead of being swallowed by the stale edit.
+            @Override
+            public void startEdit() {
+                UIAction.editScript(getItem(), getCurrentMap());
+                getListView().edit(-1);
+            }
         });
         if (getCurrentMap() == null) {
             mapScriptsList.getItems().clear();
         } else if (mapScriptsList.getItems() != null && getCurrentMap().getScripts() != null) {
-            DataUtilities.sortNamedEntities(getCurrentMap().getScripts().getScript());
-            mapScriptsList.getItems().setAll(getCurrentMap().getScripts().getScript());
+            populateScripts(mapScriptsList, getCurrentMap().getScripts().getScript());
         } else {
             mapScriptsList.getItems().clear();
         }
+    }
+
+    // Shared population path for the map script list, used by
+    // redrawMapScripts() and its tests.
+    static void populateScripts(ListView<Script> list, List<Script> scripts) {
+        DataUtilities.sortNamedEntities(scripts);
+        list.getItems().setAll(scripts);
+        // In-place name changes keep the same Script instances; explicitly repaint
+        // visible cells even on JavaFX versions that skip equal-content setAll updates.
+        list.refresh();
     }
 
     private ContextMenu generateContextMenu(Script script) {

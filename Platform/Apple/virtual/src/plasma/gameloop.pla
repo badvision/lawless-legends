@@ -2420,9 +2420,16 @@ export def moveWayBackward()#1
   byte facingDir, moveDir
   facingDir = getDir()
   if lastMoveDir <> $FF
+    // Obstruction checking won't work if the map isn't loaded; be sure it is.
+    clearPortrait
+    if needRender; doRender; fin
+
+    // Now move back one step
     moveDir = (lastMoveDir + 8) & 15  // reverse of last move
     moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
-    if global->b_moveMode == 1
+
+    // In fine-grain 3D move mode, move back a second step
+    if global->b_moveMode == 1 and mapIs3D
       moveInternal(facingDir, moveDir, FALSE, TRUE) // no beep, but do adv time
     fin
   fin

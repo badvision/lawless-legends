@@ -1310,10 +1310,14 @@ export def rand16()#1
   word result
   if recordMode
     *seed = recordSeed
-    //printf1("rand16: prev=$%x:", recordSeed)
+    if recordMode <> 'X'
+      printf1("rand16: prev=$%x:", recordSeed)
+    fin
     result = internal_rand16()
     recordSeed = *seed
-    //printf1(" next=$%x\n", recordSeed)
+    if recordMode <> 'X'
+      printf1(" next=$%x\n", recordSeed)
+    fin
     return result
   fin
   return internal_rand16()
@@ -1648,7 +1652,12 @@ end
 // if a key is pressed. In either case, returns the number of counts waited.
 export def pause(count)#1
   word i, prevSeed
-  if recordMode; prevSeed = recordSeed; fin
+  if recordMode
+    if recordMode == 'A'
+      recordMode = 'X'
+    fin
+    prevSeed = recordSeed
+  fin
   for i = 0 to count
     if ^kbd >= 128; break; fin
     animPauseCt--
@@ -1656,7 +1665,12 @@ export def pause(count)#1
       nextAnimFrame()  // also resets animPauseCt
     fin
   next
-  if recordMode; recordSeed = prevSeed; fin
+  if recordMode
+    if recordMode == 'X'
+      recordMode = 'A'
+    fin
+    recordSeed = prevSeed
+  fin
   return i
 end
 

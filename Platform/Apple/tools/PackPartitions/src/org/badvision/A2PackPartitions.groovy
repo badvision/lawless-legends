@@ -74,6 +74,8 @@ class A2PackPartitions
     // eased this pressure, but results in a bit more frequent disk access. Better than crashing!
     static final int MAX_TILESET_COUNT = 56
 
+    static boolean nowarn
+
     def typeNumToDisplayName = [1:  "Code",
                                 2:  "2D map",
                                 3:  "3D map",
@@ -4969,7 +4971,8 @@ end
                 }
                 reportWriter.flush()
                 reportFile.eachLine { println it }
-                watcher.error(t.message, inst2 ? inst2.getContextStr() : inst1 ? inst1.getContextStr() : 'outer')
+                if (!nowarn)
+                    watcher.error(t.message, inst2 ? inst2.getContextStr() : inst1 ? inst1.getContextStr() : 'outer')
             }
 
             if (inst2.nWarnings > 0) {
@@ -4977,7 +4980,8 @@ end
                     "\n============================== Packing warnings ==================================\n")
                 reportWriter.println inst2.warningBuf.toString()
                 reportWriter.write()
-                watcher.warnings(inst2.nWarnings, inst2.warningBuf.toString())
+                if (!nowarn)
+                    watcher.warnings(inst2.nWarnings, inst2.warningBuf.toString())
             }
         }
     }
@@ -5010,6 +5014,9 @@ end
         System.out = new PrintStream(new BufferedOutputStream(System.out), true)
 
         // Check the arguments
+        A2PackPartitions.nowarn = args.contains("--nowarn")
+        if (nowarn)
+            args = args.findAll { it != "--nowarn" } as String[]
         if (args.size() > 1) {
             println "Usage: java -jar packPartitions.jar [path/to/world.xml]"
             println "If no path supplied, assumes world.xml in current directory."

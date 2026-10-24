@@ -213,6 +213,7 @@ end
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 def ammoMatches(ammo, kind)
   if ammo->t_type <> TYPE_FANCY_ITEM; return FALSE; fin
+  if not ammo=>s_itemKind; return FALSE; fin
   return streqi(ammo=>s_itemKind, kind)
 end
 

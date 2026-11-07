@@ -2496,6 +2496,10 @@ export def setMap(is3D, num, x, y, dir)#0
     setPos(x, y)
     setDir(dir)
     needRender = TRUE
+    if mapIs3D
+      loadUtil3d
+      util3d=>util3d_showCompassDir(dir)
+    fin
   else
     flipToPage1()
     showMapName("Traveling...")

@@ -82,9 +82,8 @@ saveMarks: !zone
 	beq .go		; always taken
 
 .found	pla		; done with map number - discard it
-	lda #$FF
-.go	sta mask
-
+	lda #$FF	; mask=$FF for existing data in map buffer, to merge
+.go	sta mask	; else mask=$00 for new to buffer, overwrites unrelated data
 	ldy #2		; start just after header
 
 	pla		; source data addr hi...
@@ -195,6 +194,7 @@ _writeMarks: !zone
 	sta ldrhi
 	ldx $4000
 	ldy $4001
+	jsr roundup	; round up size to nearest whole block
 	lda #cmdread
 	sec
 	jsr callProRWTS
@@ -252,6 +252,7 @@ _writeMarks: !zone
 	bcc +
 	iny
 +	tax
+	jsr roundup	; round up size to whole block
 	lda #cmdwrite	; write new marks
 	sec
 	; fall through to final ProRWTS command
@@ -267,6 +268,19 @@ callProRWTS:
 	bne .err
 	rts
 .err	brk
+
+; KLUDGE ALERT! ProRWTS doesn't appear to support a partial last block when writing.
+; Round up size to the nearest whole block.
+roundup:
+	txa
+	beq +
+	iny
++	ldx #0
+	tya
+	and #1
+	beq +
+	iny
++	rts
 
 filename
  !byte 11 ; string len
